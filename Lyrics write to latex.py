@@ -31,7 +31,7 @@ category (1=Traditional,2=Contemporary,3=Modern)
 any alernate titles such as first line
 go in immediately following lines
 
-artist name, if required to distingish a song goes after exactly 1 blank line
+artist name, if required to distingish a song, goes after exactly 1 blank line
 
 after this, spaces make no difference, and until the first
 stanza label, nothing else is read
