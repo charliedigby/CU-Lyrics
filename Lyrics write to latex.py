@@ -7,7 +7,7 @@ Created on Mon Jun  2 10:42:41 2025
 
 """
 The aim of this file is to take text files as inputs, each containing 
-marked up lyrics to one song, and write command promts to the latex
+marked up lyrics to one song, and write command promts to the LaTeX
 file for the lyrics presentation.
 For each file/song, the code will need to generate:
     -suitably formatted lyric slides
@@ -53,7 +53,7 @@ a stanza will be made up of all
 lines until the next stanza reference,
 or the end of the document,
 
-ignoring of blank lines
+ignoring all blank lines
 3
 if some lines are very long, consider breaking them up- this one would format very oddly. 
 It's better that this is done manually to avoid the code breaking the line in an unusual place.
@@ -154,6 +154,17 @@ E="""}
 F="}\\selectfont\n"
 #insert slide text
 G="\n\n\\end{frame}\n"
+H="""}
+ \\vfill
+  \\centering
+  \\begin{beamercolorbox}[sep=8pt,center,shadow=true,rounded=true]{title}
+    \\usebeamerfont{title}
+    """
+I="""    
+  \\end{beamercolorbox}
+  \\vfill
+\\end{frame}
+"""
 
 #} at end of all
 
@@ -164,9 +175,9 @@ def printsong(file):
     leng=len(label)
     for l in range(leng): print("\hyperlink{%s%s%s%s}{%s}" %(title,alttitles,art,labell[l],label[l]),file=file)
     print(B,title,"}\n",file=file)
-    print(f'{C}{title}{alttitles}{art}{labell[0]}{D}{title} {art}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[0]}',G,file=file)#1st stanza with title
-    for l in range(1,leng):
-        print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[l]}',G,file=file)#other stanzas with no title
+    print(f'{C}{title}{alttitles}{art}{D}{H}{title}({art}){I}',file=file)#title page for song
+    for l in range(leng):
+        print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[l]}',G,file=file)#stanza slides
     #last bracket ends the hyperlinks in the footnote environment 
     print("}",file=file)
     
@@ -185,9 +196,9 @@ def add_to_contents(location,entries):
     #add new entry
     for entry in entries:
         if entry==title:
-            sectioncontents.append("    \\item \\hyperlink{%s%s%s%s}{%s %s}"%(title,alttitles,art,labell[0],entry,art))
+            sectioncontents.append("    \\item \\hyperlink{%s%s%s}{%s %s}"%(title,alttitles,art,entry,art))
         else:
-            sectioncontents.append("    \\item \\hyperlink{%s%s%s%s}{%s (%s)}"%(title,alttitles,art,labell[0],entry,title))
+            sectioncontents.append("    \\item \\hyperlink{%s%s%s}{%s (%s)}"%(title,alttitles,art,entry,title))
         
     
 
