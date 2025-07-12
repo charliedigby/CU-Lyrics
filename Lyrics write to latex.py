@@ -378,11 +378,12 @@ def write_song(origin,destination):
     sections=[]
     for t in alttitles:
         a=1
-        while f'%{t.lower()}'>=lyr[a+1].lower():  
+        while a+1!=len(lyr) and f'%{t.lower()}'>=lyr[a+1].lower():  
             a=a+1#find the section with the correct start letter
-            if a+1==len(lyr):break
-        sections.append(a)
-        
+    
+        sections.append(a)#this assigns each alternate title a section into which the contents entry is inserted
+ #this should ensure each entry is in the correct alphabetical section       
+
     for a in range(len(alttitles)):
         if sections[a]!=l:
             lyr[sections[a]]=add_to_contents(lyr[sections[a]],[alttitles[a]])
