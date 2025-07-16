@@ -175,11 +175,29 @@ def printsong(file):
     leng=len(label)
     for l in range(leng): print("\hyperlink{%s%s%s%s}{%s}" %(title,alttitles,art,labell[l],label[l]),file=file)
     print(B,title,"}\n",file=file)
-    print(f'{C}{title}{alttitles}{art}{D}{H}{title}({art}){I}',file=file)#title page for song
+    print(f'{C}{title}{alttitles}{art}{D}{H}{title}{art}{I}',file=file)#title page for song
     for l in range(leng):
         print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[l]}',G,file=file)#stanza slides
     #last bracket ends the hyperlinks in the footnote environment 
     print("}",file=file)
+    
+    
+"""
+Need to create a method fror spreding a contents list over multiple slides (if overful)
+This will also entail making a way for a multi-slide contents list to be read effectively.
+So long as column environment is not used for anything other than contents lists, the present method will only
+need adjusting by targetting the final use of \end{columns}
+
+Another issue to resolve is that of contents entries taking multiple lines, thus upsetting the distribution
+
+
+"""
+def list_rindex(li, x):
+    for i in reversed(range(len(li))):
+        if li[i] == x:
+            return i
+    raise ValueError("{} is not in list".format(x))
+#helpful function to inverse the index function and find last instance of an object
     
 def add_to_contents(location,entries):
    
@@ -187,7 +205,11 @@ def add_to_contents(location,entries):
 
     #mark lines which remain unchanged at start and end
     firstlines=location.index(r"\begin{columns}")
-    lastlines=location.index(r"\end{columns}")
+    lastlines=list_rindex(location,r"\end{columns}")#changing to last instance ensures reading all contents entries,
+    #but will cause problems if column environment is used elsewhere- PLEASE DO NOT DO THIS!
+    #an edit could be made to remove this issue- if this is desired, lines could be added to the LaTeX template
+    #as markers, so that the index function can be used on these lines instead of the column commands
+    #obviously, these lines should begin with % so LaTeX does not read them
     lastline=len(location)
 
     #read list elements from section contents page
@@ -196,41 +218,57 @@ def add_to_contents(location,entries):
     #add new entry
     for entry in entries:
         if entry==title:
-            sectioncontents.append("    \\item \\hyperlink{%s%s%s}{%s %s}"%(title,alttitles,art,entry,art))
+            reference=f"{entry} {art}"            
         else:
-            sectioncontents.append("    \\item \\hyperlink{%s%s%s}{%s (%s)}"%(title,alttitles,art,entry,title))
+            reference=f"{entry} ({title})"
+        phantom=""
+        while len(reference)+len(phantom)<35:
+            phantom+=" 1" #phantom text added to ensure all contents entries occupy at least 2 lines
+            
+        sectioncontents.append("    \\item \\hyperlink{%s%s%s}{%s} \\phantom{%s}"%(title,alttitles,art,reference,phantom))
+            
         
     
-
-
-    
     sectioncontents=sorted(sectioncontents, key=lambda x: x.split("{")[2])
-    scontlen=len(sectioncontents)
-
-    #number of pages the contents can fit across
-    #pages=int(scontlen/24)+1
-    #########################as yet unused- may be useful for troubleshooting overful contents
 
 
     newtext=""
     for line in range(firstlines+1):newtext+="%s\n"%(location[line])
-    newtext+="""\\column{0.05\\textwidth}
-    \\column{0.45\\textwidth}
-    \\begin{itemize}\n"""
+    while sectioncontents:
+        newtext+="""\\column{0.05\\textwidth}
+        \\column{0.45\\textwidth}
+        \\begin{itemize}\n"""
 
-    for entry in range(min(12,int((scontlen+1)/2))):newtext+="%s\n"%(sectioncontents[entry])
+        for entry in range(6): 
+            if sectioncontents: newtext+="%s\n"%(sectioncontents.pop(0))
 
-    newtext+="""\\end{itemize}
-    \\column{0.45\\textwidth}
-    """
-    if scontlen>1:
-        newtext+="\\begin{itemize}\n"
-        for entries in range(entry+1,min(24,scontlen)):newtext+="%s\n"%(sectioncontents[entries])
-        newtext+="\\end{itemize}\n"
-    newtext+="\\column{0.05\\textwidth} \n\n"
+        newtext+="""\\end{itemize}
+        \\column{0.45\\textwidth}
+        \\begin{itemize}
+        """
+
+        for entry in range(5): 
+            if sectioncontents: newtext+="%s\n"%(sectioncontents.pop(0))
+        else: newtext+="    \\item[] \\phantom{1}"
+        if sectioncontents:
+            newtext+="""    \\item[] continued...
+            \\end{itemize}
+            \\column{0.05\\textwidth} 
+            \\end{columns}
+            \\end{frame}
+            \\begin{frame}[t]
+            \\begin{columns}[t]
+            """
+    
+    newtext+="\\end{itemize}\n \\column{0.05\\textwidth} \n\n"
     for line in range(lastlines-1,lastline):newtext+="%s\n"%(location[line])
     location=newtext
     return location
+
+"""
+perhaps use \phantom{text} to make all entries the same number of characters long, thus spaced equally
+
+"""
     
 #############edit this to make sure all subequent lines included            
 #############start each section with  %**%A (or relevent letter)   
@@ -411,7 +449,7 @@ def write_song(origin,destination):
     for a in range(l,len(section)):after+=f'%*{section[a]}'#single string of all songs after
         
     lyrics=open(destination,"w")
-    print(begin,before,file=lyrics)
+    print(f"{begin}{before}",file=lyrics)
     printsong(lyrics)
     print(after,end,file=lyrics)           
     #close file          
@@ -420,18 +458,18 @@ def write_song(origin,destination):
 
 #%%
 
-with open(r"C:\Users\charl\OneDrive\Documents\Lyrics\Lyrics_basic_template.txt","r") as temp:
+with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\Lyrics_basic_template.txt","r") as temp:
     original=temp.read()
-with open(r"C:\Users\charl\OneDrive\Documents\Lyrics\Song_template.txt", "w") as temp:
+with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex", "w") as temp:
     print(original,file=temp)
     
-with open(r"C:\Users\charl\OneDrive\Documents\Lyrics\adresses.txt","r") as adresses:
+with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\adresses.txt","r") as adresses:
     songs=adresses.readlines()
     songs=[line.rstrip() for line in songs]
 for song in songs:
     read_song(song)
 
-    write_song(r"C:\Users\charl\OneDrive\Documents\Lyrics\Song_template.txt",r"C:\Users\charl\OneDrive\Documents\Lyrics\Song_template.txt")
+    write_song(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex",r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex")
     
            
              
