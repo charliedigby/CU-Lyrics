@@ -42,8 +42,8 @@
 %*%traditional
 \section{Trad}
 
-\begin{frame}{Traditional}
-\begin{columns}
+\begin{frame}[t]{Traditional}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -61,8 +61,8 @@
 %*%contemporary
 \section{Contemp}
 
-\begin{frame}{Contemporary}
-\begin{columns}
+\begin{frame}[t]{Contemporary}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -80,8 +80,8 @@
 %*%modern
 \section{Mod}
 
-\begin{frame}{Modern}
-\begin{columns}
+\begin{frame}[t]{Modern}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -100,8 +100,8 @@
 %**%0 00
 \section{123}
 
-\begin{frame}{123}
-\begin{columns}
+\begin{frame}[t]{123}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -123,8 +123,8 @@
 %space now added to prevent issues with single letter first words
 \section{A}
 
-\begin{frame}{A}
-\begin{columns}
+\begin{frame}[t]{A}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -143,8 +143,8 @@
 %**%B 0
 \section{B}
 
-\begin{frame}{B}
-\begin{columns}
+\begin{frame}[t]{B}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -163,8 +163,8 @@
 %**%C 0
 \section{C}
 
-\begin{frame}{C}
-\begin{columns}
+\begin{frame}[t]{C}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -183,8 +183,8 @@
 %**%D 0
 \section{D}
 
-\begin{frame}{D}
-\begin{columns}
+\begin{frame}[t]{D}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -203,8 +203,8 @@
 %**%E 0
 \section{E}
 
-\begin{frame}{E}
-\begin{columns}
+\begin{frame}[t]{E}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -223,8 +223,8 @@
 %**%F 0
 \section{F}
 
-\begin{frame}{F}
-\begin{columns}
+\begin{frame}[t]{F}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -243,8 +243,8 @@
 %**%G 0
 \section{G}
 
-\begin{frame}{G}
-\begin{columns}
+\begin{frame}[t]{G}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -263,8 +263,8 @@
 %**%H 0
 \section{H}
 
-\begin{frame}{H}
-\begin{columns}
+\begin{frame}[t]{H}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -283,8 +283,8 @@
 %**%I 0
 \section{I}
 
-\begin{frame}{I}
-\begin{columns}
+\begin{frame}[t]{I}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -303,8 +303,8 @@
 %**%J 0
 \section{J}
 
-\begin{frame}{J}
-\begin{columns}
+\begin{frame}[t]{J}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -323,8 +323,8 @@
 %**%K 0
 \section{K}
 
-\begin{frame}{K}
-\begin{columns}
+\begin{frame}[t]{K}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -343,8 +343,8 @@
 %**%L 0
 \section{L}
 
-\begin{frame}{L}
-\begin{columns}
+\begin{frame}[t]{L}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -363,8 +363,8 @@
 %**%M 0
 \section{M}
 
-\begin{frame}{M}
-\begin{columns}
+\begin{frame}[t]{M}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -383,8 +383,8 @@
 %**%N 0
 \section{N}
 
-\begin{frame}{N}
-\begin{columns}
+\begin{frame}[t]{N}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -403,8 +403,8 @@
 %**%O 0
 \section{O}
 
-\begin{frame}{O}
-\begin{columns}
+\begin{frame}[t]{O}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -423,8 +423,8 @@
 %**%P 0
 \section{P}
 
-\begin{frame}{P}
-\begin{columns}
+\begin{frame}[t]{P}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -443,8 +443,8 @@
 %**%Q 0
 \section{Q}
 
-\begin{frame}{Q}
-\begin{columns}
+\begin{frame}[t]{Q}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -463,8 +463,8 @@
 %**%R 0
 \section{R}
 
-\begin{frame}{R}
-\begin{columns}
+\begin{frame}[t]{R}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -483,8 +483,8 @@
 %**%S 0
 \section{S}
 
-\begin{frame}{S}
-\begin{columns}
+\begin{frame}[t]{S}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -503,8 +503,8 @@
 %**%T 0
 \section{T}
 
-\begin{frame}{T}
-\begin{columns}
+\begin{frame}[t]{T}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -523,8 +523,8 @@
 %**%U 0
 \section{U}
 
-\begin{frame}{U}
-\begin{columns}
+\begin{frame}[t]{U}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -543,8 +543,8 @@
 %**%V 0
 \section{V}
 
-\begin{frame}{V}
-\begin{columns}
+\begin{frame}[t]{V}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -563,8 +563,8 @@
 %**%W 0
 \section{W}
 
-\begin{frame}{W}
-\begin{columns}
+\begin{frame}[t]{W}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -583,8 +583,8 @@
 %**%X 0
 \section{X}
 
-\begin{frame}{X}
-\begin{columns}
+\begin{frame}[t]{X}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -603,8 +603,8 @@
 %**%Y 0
 \section{Y}
 
-\begin{frame}{Y}
-\begin{columns}
+\begin{frame}[t]{Y}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 
@@ -624,8 +624,8 @@
 %**%Z 0
 \section{Z}
 
-\begin{frame}{Z}
-\begin{columns}
+\begin{frame}[t]{Z}
+\begin{columns}[t]
 \column{0.05\textwidth}
 \column{0.45\textwidth}
 

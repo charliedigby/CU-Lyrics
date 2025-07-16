@@ -170,12 +170,12 @@ I="""
 
 
 def printsong(file):
-    print(f"%{title}",file=file) #break point to help locate future songs in aphabetical order
+    print(f"%*%{title}",file=file) #break point to help locate future songs in aphabetical order
     print(A,file=file)
     leng=len(label)
     for l in range(leng): print("\hyperlink{%s%s%s%s}{%s}" %(title,alttitles,art,labell[l],label[l]),file=file)
     print(B,title,"}\n",file=file)
-    print(f'{C}{title}{alttitles}{art}{D}{H}{title}{art}{I}',file=file)#title page for song
+    print(f'{C}{title}{alttitles}{art}{D}{H}{title} {art}{I}',file=file)#title page for song
     for l in range(leng):
         print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[l]}',G,file=file)#stanza slides
     #last bracket ends the hyperlinks in the footnote environment 
@@ -204,7 +204,7 @@ def add_to_contents(location,entries):
     location=location.splitlines()
 
     #mark lines which remain unchanged at start and end
-    firstlines=location.index(r"\begin{columns}")
+    firstlines=location.index(r"\begin{columns}[t]")
     lastlines=list_rindex(location,r"\end{columns}")#changing to last instance ensures reading all contents entries,
     #but will cause problems if column environment is used elsewhere- PLEASE DO NOT DO THIS!
     #an edit could be made to remove this issue- if this is desired, lines could be added to the LaTeX template
@@ -234,24 +234,34 @@ def add_to_contents(location,entries):
 
     newtext=""
     for line in range(firstlines+1):newtext+="%s\n"%(location[line])
+    A=6
+    B=5#maximum lengths of columns for first slide of contents
     while sectioncontents:
         newtext+="""\\column{0.05\\textwidth}
         \\column{0.45\\textwidth}
         \\begin{itemize}\n"""
+        
+        if len(sectioncontents)<A+B:
+            A=int((len(sectioncontents)+1)/2)
+            B=int(len(sectioncontents)/2)#if slide underful, evenly distribute between columns
+        elif A+B<len(sectioncontents)<A+B+4:
+            A=A-1
+            B=B-1#ensures next slide never has less than 3 entries- slightly evens distribution between slides
 
-        for entry in range(6): 
+        for entry in range(A): 
             if sectioncontents: newtext+="%s\n"%(sectioncontents.pop(0))
+            else: newtext+="    \\item[] \\phantom{1}"
 
         newtext+="""\\end{itemize}
         \\column{0.45\\textwidth}
         \\begin{itemize}
         """
 
-        for entry in range(5): 
+        for entry in range(B): 
             if sectioncontents: newtext+="%s\n"%(sectioncontents.pop(0))
-        else: newtext+="    \\item[] \\phantom{1}"
+            else: newtext+="    \\item[] \\phantom{1}"
         if sectioncontents:
-            newtext+="""    \\item[] continued...
+            newtext+="""    \\item[] \\phantom{12345678901234567890}\\textit{Continued on next slide...}
             \\end{itemize}
             \\column{0.05\\textwidth} 
             \\end{columns}
@@ -259,6 +269,9 @@ def add_to_contents(location,entries):
             \\begin{frame}[t]
             \\begin{columns}[t]
             """
+        else: newtext+="    \\item[] \\phantom{1}"
+        A=7
+        B=6#maximum lengths of columns for subsequent slides of contents (longer due to lack of header)
     
     newtext+="\\end{itemize}\n \\column{0.05\\textwidth} \n\n"
     for line in range(lastlines-1,lastline):newtext+="%s\n"%(location[line])
@@ -446,10 +459,11 @@ def write_song(origin,destination):
         while f'%{title.lower()}'>=section[l].lower(): l=l+1 #find alphabetical place within section
     else: l=len(section)
     for a in range(l):before+=f'{section[a]}%*'#single string of all songs before
+    before=before[:-2]#last %* removed from 'before' and added to 'printsong()' to prevent newline affecting song order
     for a in range(l,len(section)):after+=f'%*{section[a]}'#single string of all songs after
         
     lyrics=open(destination,"w")
-    print(f"{begin}{before}",file=lyrics)
+    print(f"{begin}{before}",file=lyrics)#f-string prevents a space between the parts, which was previously problematic
     printsong(lyrics)
     print(after,end,file=lyrics)           
     #close file          
