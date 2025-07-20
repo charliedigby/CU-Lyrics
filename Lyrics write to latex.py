@@ -36,7 +36,7 @@ artist name, if required to distingish a song, goes after exactly 1 blank line
 after this, spaces make no difference, and until the first
 stanza label, nothing else is read
 
-a line of 3 or less characters is interpereted as a stanza label,
+a line of 3 or less characters is interpereted as a stanza label (unless [] used),
 and will appear as an internal hyperlink to navigate between stanzas
 verse numbers and C (for chorus) are suggested
 other potential choices may be B or Br (bridge); C1 , C2 (if choruses change);
@@ -142,8 +142,9 @@ B=r"""
 #insert title here and close with bracket
 
 #now begin the slides:
-#hypertarget:
-C=r"\hypertarget{"
+#hypertarget: (phantomsection helps locate hypertarget at top of slide)
+C="""\\phantomsection
+\\hypertarget{"""
 #begin the frame:
 D="""}{}
 \\begin{frame}{"""
@@ -261,7 +262,7 @@ def add_to_contents(location,entries):
             if sectioncontents: newtext+="%s\n"%(sectioncontents.pop(0))
             else: newtext+="    \\item[] \\phantom{1}"
         if sectioncontents:
-            newtext+="""    \\item[] \\phantom{12345678901234567890}\\textit{Continued on next slide...}
+            newtext+="""    \\item[] \\textit{Continued on next slide...}
             \\end{itemize}
             \\column{0.05\\textwidth} 
             \\end{columns}
@@ -347,13 +348,16 @@ def read_song(file):
     length=len(song) #number of lines to search for stanza labels
 
     for a in range(length): #search lines for stanza labels
-        if len(song[a])<=3: #any line no more than 3 characters interpreted as stanza label
+        if len(song[a])<=3 and not '['in song[a]: #any line no more than 3 characters interpreted as stanza label, unless [] used
             ref.append(a)
             label.append(song[a]) #lists of line references and stanza labels
             while song[a] in labell:
                 song[a]+="I"
             labell.append(song[a]) #the labels in labell are unique, and will be used for
                                    #hyperlink references, while those in label will be visible
+        if '[' in song[a]:
+            song[a]=song[a].replace("[","")
+            song[a]=song[a].replace("]","")
     ref.append(length) #codes the last line+1 as final stanza reference, to bookend the last stanza
 
     #ascertain longest line length to choose font size
