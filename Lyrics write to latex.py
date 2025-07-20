@@ -306,17 +306,22 @@ Begin by reading the song and preparing it into appropriate format
 """
 def read_song(file):
     global title
+    global Wtitle
     global cat
     global ref
+    global Wref
     global label
     global labell
     global art
     global textsize
     global colsep
     global alttitles
+    global Walttitles
     global stanzas
+    global Wstanzas
     s=open(file,"r")
     ref=[]
+    Wref=[]
     label=[]
     labell=[]
 
@@ -348,17 +353,21 @@ def read_song(file):
     length=len(song) #number of lines to search for stanza labels
 
     for a in range(length): #search lines for stanza labels
-        if len(song[a])<=3 and not '['in song[a]: #any line no more than 3 characters interpreted as stanza label, unless [] used
+        if len(song[a])<=3 and not '['in song[a] and song[a]!="W": #any line no more than 3 characters interpreted as stanza label, unless [] used, or W
             ref.append(a)
             label.append(song[a]) #lists of line references and stanza labels
             while song[a] in labell:
                 song[a]+="I"
             labell.append(song[a]) #the labels in labell are unique, and will be used for
                                    #hyperlink references, while those in label will be visible
-        if '[' in song[a]:
+        elif '[' in song[a]:
             song[a]=song[a].replace("[","")
             song[a]=song[a].replace("]","")
+        elif song[a]=="W":
+            Wref.append(a)
     ref.append(length) #codes the last line+1 as final stanza reference, to bookend the last stanza
+        
+            
 
     #ascertain longest line length to choose font size
     longest=len(max(song,key=len)) #length of longest line
@@ -385,10 +394,18 @@ def read_song(file):
     #collect the stanzas
 
     stanzas=[[] for l in label]
-    for t in range(len(label)):    
-        for l in range(ref[t]+1,ref[t+1]): #append lines between stanza references
+    Wstanzas=stanzas
+    for t in range(len(label)): 
+        endEng=ref[t+1]
+        for w in Wref:
+            if ref[t]<w<ref[t+1]:
+                endEng=w
+                break
+        for l in range(ref[t]+1,endEng): #append lines between stanza references
             stanzas[t].append(song[l])
         stanzas[t]="\\\ \n".join(stanzas[t]) #make each stanza a string, with \\ as newline command in LaTeX
+        for l in range(endEng+1,ref[t+1]):
+            Wstanzas[t].append(song[l])
     
 
     
