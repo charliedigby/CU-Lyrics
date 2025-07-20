@@ -26,10 +26,12 @@ For each file/song, the code will need to generate:
 **********************************************************************
 Format for input lyrics:
 
-title
+English title- if none, leave empty line
+W-welsh title follows W- with no space- if none, this line should not exist
 category (1=Traditional,2=Contemporary,3=Modern)
 any alernate titles such as first line
 go in immediately following lines
+W-Welsh alternate titles follow W- with no space
 
 artist name, if required to distingish a song, goes after exactly 1 blank line
 
@@ -47,6 +49,14 @@ What is written here will
 be taken as lines in a stanza
 with "1" as the label, 
 usually meaning verse 1
+W
+If there are welsh lyrics for a stanza,
+write them after a W line
+
+C
+W
+If a stanza has only welsh lyrics,
+simply make the stanza label followed by the W line
 
 2
 a stanza will be made up of all 
@@ -333,17 +343,31 @@ def read_song(file):
     song=[line.rstrip() for line in song] #removes \n and spaces from each line
 
    
-    title= song[0] 
+    title=Wtitle=False
+    
+    for a in range(2):#takes a line in first two lines begining with W- as Welsh title
+        if song[a].startswith("W-"): 
+            Wtitle=(song.pop(a))[2:]
+    if song[0]: title=song[0] #Remaining first line taken as English title- leave space if no English title   
+    
     if song[1].isdigit():
         cat=int(song.pop(1))
     else: cat=0
 
     alttitles=[]
+    Walttitles=[]
     art=""
     p=1
     while len(song[p])>3:
-        alttitles.append(song[p])
-        p=p+1
+        if song[p].startswith("W-"):
+            Walttitles.append(song[p][2:])
+            p=p+1
+        else:
+            alttitles.append(song[p])
+            p=p+1
+    if not title and alttitles: title=alttitles.pop(0)
+    if not Wtitle and Walttitles: Wtitle=Walttitles.pop(0) #if either title field empty while alternate titles exist, the first becomes main title for that language
+        
     #this interperets any lines before the first stanza label or blank line as an alternative title 
     if len(song[p])==0 and len(song[p+1])>3:
         art=f'({song[p+1]})'
@@ -353,7 +377,7 @@ def read_song(file):
     length=len(song) #number of lines to search for stanza labels
 
     for a in range(length): #search lines for stanza labels
-        if len(song[a])<=3 and not '['in song[a] and song[a]!="W": #any line no more than 3 characters interpreted as stanza label, unless [] used, or W
+        if len(song[a])<=3 and song[a]!="W" and not '['in song[a]: #any line no more than 3 characters interpreted as stanza label, unless [] used, or W
             ref.append(a)
             label.append(song[a]) #lists of line references and stanza labels
             while song[a] in labell:
@@ -421,7 +445,7 @@ def read_song(file):
 Now write to latex file
 """
 
-def write_song(origin,destination):
+def write_song(origin,destination,language):
     #open latex file
     lyrics=open(origin,"r")
     lyr=lyrics.read().split('%**') #divide into alphabetical sections (with %** as marker characters)
@@ -433,9 +457,15 @@ def write_song(origin,destination):
 
     #add to category contents
     if 0<cat<4:
-        entries=[title]
-        for a in range(len(alttitles)):
-            entries.append(alttitles[a])
+        entries=[]
+        if title: 
+            entries.append(title)
+            for a in range(len(alttitles)):
+                entries.append(alttitles[a])
+        if Wtitle: 
+            entries.append(Wtitle)
+            for a in range(len(Walttitles)):
+                entries.append(Walttitles[a])
         lyr[0]=lyr[0].split('%*')
         lyr[0][cat]=add_to_contents(lyr[0][cat], entries)
         lyr[0]='%*'.join(lyr[0])
@@ -443,12 +473,18 @@ def write_song(origin,destination):
 
 
     l=1
-    while f'%{title.lower()}'>=lyr[l+1].lower():  
-        l=l+1#find the section with the correct start letter
-        if l+1==len(lyr):break
+    if title:
+        while f'%{title.lower()}'>=lyr[l+1].lower():  
+            l=l+1#find the section with the correct start letter
+            if l+1==len(lyr):break
+    else:
+        while f'%{Wtitle.lower()}'>=lyr[l+1].lower():  
+            l=l+1#find the section with the correct start letter
+            if l+1==len(lyr):break
 
     sections=[]
-    for t in alttitles:
+    alternative_titles= alttitles + Walttitles
+    for t in alternative_titles:
         a=1
         while a+1!=len(lyr) and f'%{t.lower()}'>=lyr[a+1].lower():  
             a=a+1#find the section with the correct start letter
@@ -456,9 +492,9 @@ def write_song(origin,destination):
         sections.append(a)#this assigns each alternate title a section into which the contents entry is inserted
  #this should ensure each entry is in the correct alphabetical section       
 
-    for a in range(len(alttitles)):
+    for a in range(len(alternative_titles)):
         if sections[a]!=l:
-            lyr[sections[a]]=add_to_contents(lyr[sections[a]],[alttitles[a]])
+            lyr[sections[a]]=add_to_contents(lyr[sections[a]],[alternative_titles[a]])
             
             
         
@@ -468,16 +504,21 @@ def write_song(origin,destination):
 
 
     #add to section contents:
-    entries=[title]
-    for a in range(len(alttitles)):
+    entries=[]
+    alternative_titles.append(Wtitle)
+    if title:
+        entries=[title]
+    for a in range(len(alternative_titles)):
         if sections[a]==l:
-            entries.append(alttitles[a])
+            entries.append(alternative_titles[a])
     section[0]=add_to_contents(section[0],entries)
 
-
+    if title:
+        t=title
+    else: t=Wtitle
     l=1
-    if f'%{title.lower()}'<section[-1].lower():
-        while f'%{title.lower()}'>=section[l].lower(): l=l+1 #find alphabetical place within section
+    if f'%{t.lower()}'<section[-1].lower():
+        while f'%{t.lower()}'>=section[l].lower(): l=l+1 #find alphabetical place within section
     else: l=len(section)
     for a in range(l):before+=f'{section[a]}%*'#single string of all songs before
     before=before[:-2]#last %* removed from 'before' and added to 'printsong()' to prevent newline affecting song order
@@ -504,7 +545,7 @@ with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\adresses.txt",
 for song in songs:
     read_song(song)
 
-    write_song(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex",r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex")
+    write_song(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex",r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex","Eng")
     
            
              
