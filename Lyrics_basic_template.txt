@@ -1,6 +1,11 @@
 \documentclass{beamer}
 \usepackage{graphicx} % Required for inserting images
 \usetheme{Berlin}
+\usepackage{xcolor}
+\definecolor{Eng}{HTML}{0056B8}
+\definecolor{Cym}{HTML}{222222}
+\newcommand{\Eng}[1]{\textcolor{Eng}{\textsf{#1}}}
+\newcommand{\Cym}[1]{\tectcolor{Cym}{\textit{#1}}}
 
 \setbeamertemplate{footline}
 {% 
