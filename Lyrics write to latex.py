@@ -180,7 +180,7 @@ I="""
 #} at end of all
 
 
-def printsong(file):
+def printsong(file,language):
     print(f"%*%{title}",file=file) #break point to help locate future songs in aphabetical order
     print(A,file=file)
     leng=len(label)
@@ -188,7 +188,19 @@ def printsong(file):
     print(B,title,"}\n",file=file)
     print(f'{C}{title}{alttitles}{art}{D}{H}{title} {art}{I}',file=file)#title page for song
     for l in range(leng):
-        print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[l]}',G,file=file)#stanza slides
+        if stanzas[l] and (language=="Eng" or (language=="Bil" and not Wstanzas[l])):
+            stanza="\\\ \n".join(stanzas[l])#make each stanza a string, with \\ as newline command in LaTeX
+            print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanza}',G,file=file)#stanza slides
+        elif Wstanzas[l] and (language=="Cym" or (language=="Bil" and not stanzas[l])):
+            Wstanza="\\\ \n".join(Wstanzas[l])
+            print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{Wstanza}',G,file=file)#stanza slides
+        elif language=="Bil" and stanzas[l] and Wstanzas[l]:
+            print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,F,file=file)
+            for i in range(max(len(stanzas[l]),len(Wstanzas[l]))):
+                print('\\Eng{'+stanzas[l][i]+'}\\\ ',file=file)
+                print('\\Cym{'+Wstanzas[l][i]+'}\\\ ',file=file)
+            print(G,file=file)
+        
     #last bracket ends the hyperlinks in the footnote environment 
     print("}",file=file)
     
@@ -427,7 +439,7 @@ def read_song(file):
                 break
         for l in range(ref[t]+1,endEng): #append lines between stanza references
             stanzas[t].append(song[l])
-        stanzas[t]="\\\ \n".join(stanzas[t]) #make each stanza a string, with \\ as newline command in LaTeX
+         
         for l in range(endEng+1,ref[t+1]):
             Wstanzas[t].append(song[l])
     
@@ -526,7 +538,7 @@ def write_song(origin,destination,language):
         
     lyrics=open(destination,"w")
     print(f"{begin}{before}",file=lyrics)#f-string prevents a space between the parts, which was previously problematic
-    printsong(lyrics)
+    printsong(lyrics,language)
     print(after,end,file=lyrics)           
     #close file          
     lyrics.close()
