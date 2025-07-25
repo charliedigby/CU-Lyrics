@@ -195,11 +195,13 @@ def printsong(file,language):
             Wstanza="\\\ \n".join(Wstanzas[l])
             print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{Wstanza}',G,file=file)#stanza slides
         elif language=="Bil" and stanzas[l] and Wstanzas[l]:
-            print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,F,file=file)
-            for i in range(max(len(stanzas[l]),len(Wstanzas[l]))):
-                print('\\Eng{'+stanzas[l][i]+'}\\\ ',file=file)
-                print('\\Cym{'+Wstanzas[l][i]+'}\\\ ',file=file)
-            print(G,file=file)
+            for a in range(len(bilingualStanzaLength)):
+                print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,F,file=file)##the repeated hyperref will confuse the compiler##############################################
+                for i in range(bilingualStanzaLength[a]):
+                    print('\\Eng{'+stanzas[l][i]+'}\\\ ',file=file)
+                    print('\\Cym{'+Wstanzas[l][i]+'}\\\ ',file=file)
+                print(G,file=file)
+            
         
     #last bracket ends the hyperlinks in the footnote environment 
     print("}",file=file)
@@ -341,6 +343,7 @@ def read_song(file):
     global Walttitles
     global stanzas
     global Wstanzas
+    global bilingualStanzaLength
     s=open(file,"r")
     ref=[]
     Wref=[]
@@ -403,33 +406,11 @@ def read_song(file):
             Wref.append(a)
     ref.append(length) #codes the last line+1 as final stanza reference, to bookend the last stanza
         
+    
             
-
-    #ascertain longest line length to choose font size
-    longest=len(max(song,key=len)) #length of longest line
-    if longest>61:
-        print("You've got a really long line in there, it might format badly")
-        
-    stanzlen=[]
-    for i in range(len(ref)-1):
-        stanzlen.append(ref[i+1]-ref[i]-1) #find length of each stanza
-    bigstan=max(stanzlen) #find the longest stanza length
-       
-    size=[40,33,28,23,20,18,15,13]
-    cols=[45,39,34,30,27,23,19,17]
-    maxlen=[18,21,25,31,37,44,51,61]#lists of boundary text sizes and max string length which will fit with that size
-    maxstan=[4,4,5,6,7,8,9,10]#maximum number of lines for the given textsize
-
-    p=0
-    while longest>maxlen[p] and p<7: p=p+1 #choose smaller font if line too long
-    while bigstan>maxstan[p] and p<7: p=p+1 #choose smaller font if too many lines
-    textsize=size[p]
-    colsep=cols[p]
-
-
     #collect the stanzas
 
-    stanzas=[[] for l in label]
+    stanzas=Wstanzas=bilingualStanzaLength=[[] for l in label]
     Wstanzas=stanzas
     for t in range(len(label)): 
         endEng=ref[t+1]
@@ -442,6 +423,58 @@ def read_song(file):
          
         for l in range(endEng+1,ref[t+1]):
             Wstanzas[t].append(song[l])
+            
+            
+            
+    #ascertain longest line length to choose font size
+    longest=len(max(song,key=len)) #length of longest line
+    if longest>61:
+        print("You've got a really long line in there, it might format badly")
+     
+    stanzlen=[]
+    
+    for s in range(len(stanzas)):
+        E=stanzas[s]
+        W=Wstanzas[s]
+        stanzaLength=len(E+W)
+        if stanzaLength>10:
+            print("This stanza will be too long in bilingual format, where do you want to split it?")            
+            i=1
+            for lineE,lineW in zip(E,W):
+                print(i+":",lineE)              
+                print("   ",lineW)
+                i+=1
+            print("Type the number given to the row you want to appear at the start of the second slide:")
+            a=float(input())-1
+            bilingualStanzaLength[s].append(a)
+            stanzaLength-=2*a
+        bilingualStanzaLength[s].append(int(stanzaLength/2))
+            
+            
+        stanzlen.append((len(E+W),len(E),len(W)))
+        
+        
+    bigstan=[max(length) for length in zip(*stanzlen)]
+    
+    
+       
+    size=[40,33,28,23,20,18,15,13]
+    cols=[45,39,34,30,27,23,19,17]
+    maxlen=[18,21,25,31,37,44,51,61]#lists of boundary text sizes and max string length which will fit with that size
+    maxstan=[4,4,5,6,7,8,9,10]#maximum number of lines for the given textsize
+    """
+    This can be updated, as now have more controll over text sizing if use 
+    
+    \\setmainfont{Times New Roman}
+    (will have to make decision on font for bilingual input)
+    skip should be approx. 1.2*size
+    """
+
+    p=0
+    while longest>maxlen[p] and p<7: p=p+1 #choose smaller font if line too long
+    while bigstan>maxstan[p] and p<7: p=p+1 #choose smaller font if too many lines
+    textsize=min(700/longest,150/bigstan)
+    colsep=textsize*1.2
     
 
     
@@ -457,7 +490,7 @@ def read_song(file):
 Now write to latex file
 """
 
-def write_song(origin,destination,language):
+def write_song(origin,destination,language="Bil"):
     #open latex file
     lyrics=open(origin,"r")
     lyr=lyrics.read().split('%**') #divide into alphabetical sections (with %** as marker characters)
@@ -550,7 +583,15 @@ with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\Lyrics_basic_t
     original=temp.read()
 with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex", "w") as temp:
     print(original,file=temp)
-    
+"""  This is to be used to access the text files containing lyrics  
+song_paths=[]    
+from pathlib import Path
+
+folder_path = Path(r"C:\Users\charl\OneDrive\Documents\Lyrics\Songs")#update to correct folder path
+for file in folder_path.iterdir():
+    if file.is_file():  # Check if it's a file
+        song_paths.append(file)
+"""    
 with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\adresses.txt","r") as adresses:
     songs=adresses.readlines()
     songs=[line.rstrip() for line in songs]
