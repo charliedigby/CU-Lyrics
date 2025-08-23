@@ -26,10 +26,12 @@ For each file/song, the code will need to generate:
 **********************************************************************
 Format for input lyrics:
 
-title
+English title- if none, leave empty line
+W-welsh title follows W- with no space- if none, this line should not exist
 category (1=Traditional,2=Contemporary,3=Modern)
 any alernate titles such as first line
 go in immediately following lines
+W-Welsh alternate titles follow W- with no space
 
 artist name, if required to distingish a song, goes after exactly 1 blank line
 
@@ -47,6 +49,14 @@ What is written here will
 be taken as lines in a stanza
 with "1" as the label, 
 usually meaning verse 1
+W
+If there are welsh lyrics for a stanza,
+write them after a W line
+
+C
+W
+If a stanza has only welsh lyrics,
+simply make the stanza label followed by the W line
 
 2
 a stanza will be made up of all 
@@ -170,7 +180,7 @@ I="""
 #} at end of all
 
 
-def printsong(file):
+def printsong(file,language):
     print(f"%*%{title}",file=file) #break point to help locate future songs in aphabetical order
     print(A,file=file)
     leng=len(label)
@@ -178,7 +188,21 @@ def printsong(file):
     print(B,title,"}\n",file=file)
     print(f'{C}{title}{alttitles}{art}{D}{H}{title} {art}{I}',file=file)#title page for song
     for l in range(leng):
-        print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanzas[l]}',G,file=file)#stanza slides
+        if stanzas[l] and (language=="Eng" or (language=="Bil" and not Wstanzas[l])):
+            stanza="\\\ \n".join(stanzas[l])#make each stanza a string, with \\ as newline command in LaTeX
+            print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{stanza}',G,file=file)#stanza slides
+        elif Wstanzas[l] and (language=="Cym" or (language=="Bil" and not stanzas[l])):
+            Wstanza="\\\ \n".join(Wstanzas[l])
+            print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,f'{F}\n{Wstanza}',G,file=file)#stanza slides
+        elif language=="Bil" and stanzas[l] and Wstanzas[l]:
+            for a in range(len(bilingualStanzaLength)):
+                print(f'{C}{title}{alttitles}{art}{labell[l]}{D}{E}',textsize,"}{",colsep,F,file=file)##the repeated hyperref will confuse the compiler##############################################
+                for i in range(bilingualStanzaLength[a]):
+                    print('\\Eng{'+stanzas[l][i]+'}\\\ ',file=file)
+                    print('\\Cym{'+Wstanzas[l][i]+'}\\\ ',file=file)
+                print(G,file=file)
+            
+        
     #last bracket ends the hyperlinks in the footnote environment 
     print("}",file=file)
     
@@ -306,17 +330,23 @@ Begin by reading the song and preparing it into appropriate format
 """
 def read_song(file):
     global title
+    global Wtitle
     global cat
     global ref
+    global Wref
     global label
     global labell
     global art
     global textsize
     global colsep
     global alttitles
+    global Walttitles
     global stanzas
+    global Wstanzas
+    global bilingualStanzaLength
     s=open(file,"r")
     ref=[]
+    Wref=[]
     label=[]
     labell=[]
 
@@ -328,17 +358,31 @@ def read_song(file):
     song=[line.rstrip() for line in song] #removes \n and spaces from each line
 
    
-    title= song[0] 
+    title=Wtitle=False
+    
+    for a in range(2):#takes a line in first two lines begining with W- as Welsh title
+        if song[a].startswith("W-"): 
+            Wtitle=(song.pop(a))[2:]
+    if song[0]: title=song[0] #Remaining first line taken as English title- leave space if no English title   
+    
     if song[1].isdigit():
         cat=int(song.pop(1))
     else: cat=0
 
     alttitles=[]
+    Walttitles=[]
     art=""
     p=1
     while len(song[p])>3:
-        alttitles.append(song[p])
-        p=p+1
+        if song[p].startswith("W-"):
+            Walttitles.append(song[p][2:])
+            p=p+1
+        else:
+            alttitles.append(song[p])
+            p=p+1
+    if not title and alttitles: title=alttitles.pop(0)
+    if not Wtitle and Walttitles: Wtitle=Walttitles.pop(0) #if either title field empty while alternate titles exist, the first becomes main title for that language
+        
     #this interperets any lines before the first stanza label or blank line as an alternative title 
     if len(song[p])==0 and len(song[p+1])>3:
         art=f'({song[p+1]})'
@@ -348,47 +392,89 @@ def read_song(file):
     length=len(song) #number of lines to search for stanza labels
 
     for a in range(length): #search lines for stanza labels
-        if len(song[a])<=3 and not '['in song[a]: #any line no more than 3 characters interpreted as stanza label, unless [] used
+        if len(song[a])<=3 and song[a]!="W" and not '['in song[a]: #any line no more than 3 characters interpreted as stanza label, unless [] used, or W
             ref.append(a)
             label.append(song[a]) #lists of line references and stanza labels
             while song[a] in labell:
                 song[a]+="I"
             labell.append(song[a]) #the labels in labell are unique, and will be used for
                                    #hyperlink references, while those in label will be visible
-        if '[' in song[a]:
+        elif '[' in song[a]:
             song[a]=song[a].replace("[","")
             song[a]=song[a].replace("]","")
+        elif song[a]=="W":
+            Wref.append(a)
     ref.append(length) #codes the last line+1 as final stanza reference, to bookend the last stanza
+        
+    
+            
+    #collect the stanzas
 
+    stanzas=Wstanzas=bilingualStanzaLength=[[] for l in label]
+    Wstanzas=stanzas
+    for t in range(len(label)): 
+        endEng=ref[t+1]
+        for w in Wref:
+            if ref[t]<w<ref[t+1]:
+                endEng=w
+                break
+        for l in range(ref[t]+1,endEng): #append lines between stanza references
+            stanzas[t].append(song[l])
+         
+        for l in range(endEng+1,ref[t+1]):
+            Wstanzas[t].append(song[l])
+            
+            
+            
     #ascertain longest line length to choose font size
     longest=len(max(song,key=len)) #length of longest line
     if longest>61:
         print("You've got a really long line in there, it might format badly")
-        
+     
     stanzlen=[]
-    for i in range(len(ref)-1):
-        stanzlen.append(ref[i+1]-ref[i]-1) #find length of each stanza
-    bigstan=max(stanzlen) #find the longest stanza length
+    
+    for s in range(len(stanzas)):
+        E=stanzas[s]
+        W=Wstanzas[s]
+        stanzaLength=len(E+W)
+        if stanzaLength>10:
+            print("This stanza will be too long in bilingual format, where do you want to split it?")            
+            i=1
+            for lineE,lineW in zip(E,W):
+                print(i+":",lineE)              
+                print("   ",lineW)
+                i+=1
+            print("Type the number given to the row you want to appear at the start of the second slide:")
+            a=float(input())-1
+            bilingualStanzaLength[s].append(a)
+            stanzaLength-=2*a
+        bilingualStanzaLength[s].append(int(stanzaLength/2))
+            
+            
+        stanzlen.append((len(E+W),len(E),len(W)))
+        
+        
+    bigstan=[max(length) for length in zip(*stanzlen)]
+    
+    
        
     size=[40,33,28,23,20,18,15,13]
     cols=[45,39,34,30,27,23,19,17]
     maxlen=[18,21,25,31,37,44,51,61]#lists of boundary text sizes and max string length which will fit with that size
     maxstan=[4,4,5,6,7,8,9,10]#maximum number of lines for the given textsize
+    """
+    This can be updated, as now have more controll over text sizing if use 
+    
+    \\setmainfont{Times New Roman}
+    (will have to make decision on font for bilingual input)
+    skip should be approx. 1.2*size
+    """
 
     p=0
     while longest>maxlen[p] and p<7: p=p+1 #choose smaller font if line too long
     while bigstan>maxstan[p] and p<7: p=p+1 #choose smaller font if too many lines
-    textsize=size[p]
-    colsep=cols[p]
-
-
-    #collect the stanzas
-
-    stanzas=[[] for l in label]
-    for t in range(len(label)):    
-        for l in range(ref[t]+1,ref[t+1]): #append lines between stanza references
-            stanzas[t].append(song[l])
-        stanzas[t]="\\\ \n".join(stanzas[t]) #make each stanza a string, with \\ as newline command in LaTeX
+    textsize=min(900/longest,150/bigstan)
+    colsep=textsize*1.2
     
 
     
@@ -404,7 +490,7 @@ def read_song(file):
 Now write to latex file
 """
 
-def write_song(origin,destination):
+def write_song(origin,destination,language="Bil"):
     #open latex file
     lyrics=open(origin,"r")
     lyr=lyrics.read().split('%**') #divide into alphabetical sections (with %** as marker characters)
@@ -416,9 +502,15 @@ def write_song(origin,destination):
 
     #add to category contents
     if 0<cat<4:
-        entries=[title]
-        for a in range(len(alttitles)):
-            entries.append(alttitles[a])
+        entries=[]
+        if title: 
+            entries.append(title)
+            for a in range(len(alttitles)):
+                entries.append(alttitles[a])
+        if Wtitle: 
+            entries.append(Wtitle)
+            for a in range(len(Walttitles)):
+                entries.append(Walttitles[a])
         lyr[0]=lyr[0].split('%*')
         lyr[0][cat]=add_to_contents(lyr[0][cat], entries)
         lyr[0]='%*'.join(lyr[0])
@@ -426,12 +518,18 @@ def write_song(origin,destination):
 
 
     l=1
-    while f'%{title.lower()}'>=lyr[l+1].lower():  
-        l=l+1#find the section with the correct start letter
-        if l+1==len(lyr):break
+    if title:
+        while f'%{title.lower()}'>=lyr[l+1].lower():  
+            l=l+1#find the section with the correct start letter
+            if l+1==len(lyr):break
+    else:
+        while f'%{Wtitle.lower()}'>=lyr[l+1].lower():  
+            l=l+1#find the section with the correct start letter
+            if l+1==len(lyr):break
 
     sections=[]
-    for t in alttitles:
+    alternative_titles= alttitles + Walttitles
+    for t in alternative_titles:
         a=1
         while a+1!=len(lyr) and f'%{t.lower()}'>=lyr[a+1].lower():  
             a=a+1#find the section with the correct start letter
@@ -439,9 +537,9 @@ def write_song(origin,destination):
         sections.append(a)#this assigns each alternate title a section into which the contents entry is inserted
  #this should ensure each entry is in the correct alphabetical section       
 
-    for a in range(len(alttitles)):
+    for a in range(len(alternative_titles)):
         if sections[a]!=l:
-            lyr[sections[a]]=add_to_contents(lyr[sections[a]],[alttitles[a]])
+            lyr[sections[a]]=add_to_contents(lyr[sections[a]],[alternative_titles[a]])
             
             
         
@@ -451,16 +549,21 @@ def write_song(origin,destination):
 
 
     #add to section contents:
-    entries=[title]
-    for a in range(len(alttitles)):
+    entries=[]
+    alternative_titles.append(Wtitle)
+    if title:
+        entries=[title]
+    for a in range(len(alternative_titles)):
         if sections[a]==l:
-            entries.append(alttitles[a])
+            entries.append(alternative_titles[a])
     section[0]=add_to_contents(section[0],entries)
 
-
+    if title:
+        t=title
+    else: t=Wtitle
     l=1
-    if f'%{title.lower()}'<section[-1].lower():
-        while f'%{title.lower()}'>=section[l].lower(): l=l+1 #find alphabetical place within section
+    if f'%{t.lower()}'<section[-1].lower():
+        while f'%{t.lower()}'>=section[l].lower(): l=l+1 #find alphabetical place within section
     else: l=len(section)
     for a in range(l):before+=f'{section[a]}%*'#single string of all songs before
     before=before[:-2]#last %* removed from 'before' and added to 'printsong()' to prevent newline affecting song order
@@ -468,7 +571,7 @@ def write_song(origin,destination):
         
     lyrics=open(destination,"w")
     print(f"{begin}{before}",file=lyrics)#f-string prevents a space between the parts, which was previously problematic
-    printsong(lyrics)
+    printsong(lyrics,language)
     print(after,end,file=lyrics)           
     #close file          
     lyrics.close()
@@ -480,14 +583,18 @@ with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\Lyrics_basic_t
     original=temp.read()
 with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex", "w") as temp:
     print(original,file=temp)
-    
-with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\adresses.txt","r") as adresses:
-    songs=adresses.readlines()
-    songs=[line.rstrip() for line in songs]
-for song in songs:
-    read_song(song)
+# This is to be used to access the text files containing lyrics  
+song_paths=[]    
+from pathlib import Path
 
-    write_song(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex",r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex")
+folder_path = Path(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\Songs")#update to correct folder path
+for file in folder_path.iterdir():
+    if file.is_file():  # Check if it's a file
+        song_paths.append(file)
+   
+for song in song_paths:
+    read_song(song)
+    write_song(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex",r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex","Eng")
     
            
              
