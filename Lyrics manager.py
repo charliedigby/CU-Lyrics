@@ -389,7 +389,8 @@ def read_song(file):
     song=[line.rstrip() for line in song] #removes \n and spaces from each line
 
    
-    title=Wtitle=""
+    title=""
+    Wtitle=""
     
     for a in range(2):#takes a line in first two lines begining with W- as Welsh title
         if song[a].startswith("W-"): 
