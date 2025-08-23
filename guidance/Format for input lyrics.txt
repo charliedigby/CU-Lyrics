@@ -1,0 +1,50 @@
+Format for input lyrics:
+
+English title on very first line- if none, leave empty line
+W-welsh title follows W- with no space- if none, this line should not exist
+category (1=Traditional,2=Contemporary,3=Modern)
+any alternate titles such as first line
+go in immediately following lines
+W-Welsh alternate titles follow W- with no space
+
+artist name, if required to distinguish a song, goes after exactly 1 blank line
+
+after this, spaces make no difference, and until the first
+stanza label, nothing else is read by the code
+
+a line of 3 or less characters is interpreted as a stanza label (unless [] used),
+and will appear as an internal hyperlink to navigate between stanzas.
+verse numbers and C (for chorus) are suggested.
+other potential choices may be B or Br (bridge); C1 , C2 (if choruses change);
+I or Int (intro); O or Out (outro)
+
+1
+What is written here will
+be taken as lines in a stanza
+with "1" as the label, 
+usually meaning verse 1
+W
+If there are welsh lyrics for a stanza,
+write them after a W line
+
+C
+W
+If a stanza has only welsh lyrics,
+simply make the stanza label followed by the W line
+
+2
+a stanza will be made up of all 
+lines until the next stanza reference,
+or the end of the document,
+
+ignoring all blank lines
+3
+if some lines are very long, consider breaking them up- this one would format very oddly. 
+It's better that this is done manually to avoid the code breaking the line in an unusual place.
+likewise if a stanza has a lot of lines
+then consider breaking it up with a hyphen
+-
+on a single line in a logical place
+this will allocate it into 2 stanzas
+the second will be labeled with a "-"
+this prevents overcrowded slides

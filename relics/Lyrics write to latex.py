@@ -473,7 +473,7 @@ def read_song(file):
     p=0
     while longest>maxlen[p] and p<7: p=p+1 #choose smaller font if line too long
     while bigstan>maxstan[p] and p<7: p=p+1 #choose smaller font if too many lines
-    textsize=min(700/longest,150/bigstan)
+    textsize=min(900/longest,150/bigstan)
     colsep=textsize*1.2
     
 
@@ -583,21 +583,17 @@ with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\Lyrics_basic_t
     original=temp.read()
 with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex", "w") as temp:
     print(original,file=temp)
-"""  This is to be used to access the text files containing lyrics  
+# This is to be used to access the text files containing lyrics  
 song_paths=[]    
 from pathlib import Path
 
-folder_path = Path(r"C:\Users\charl\OneDrive\Documents\Lyrics\Songs")#update to correct folder path
+folder_path = Path(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\Songs")#update to correct folder path
 for file in folder_path.iterdir():
     if file.is_file():  # Check if it's a file
         song_paths.append(file)
-"""    
-with open(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\adresses.txt","r") as adresses:
-    songs=adresses.readlines()
-    songs=[line.rstrip() for line in songs]
-for song in songs:
+   
+for song in song_paths:
     read_song(song)
-
     write_song(r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex",r"C:\Users\charl\OneDrive\Documents\CU lyrics\CU-Lyrics\2nd draft.tex","Eng")
     
            

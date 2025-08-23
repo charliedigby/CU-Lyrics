@@ -1,4 +1,4 @@
-\documentclass{beamer}
+\documentclass[aspectratio=169]{beamer}
 \usepackage{graphicx} % Required for inserting images
 \usetheme{Berlin}
 \usepackage{xcolor}
