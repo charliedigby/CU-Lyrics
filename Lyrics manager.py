@@ -8,6 +8,7 @@ Created on Mon Aug 11 13:57:39 2025
 import json
 song={}
 docu={}
+documents={}
 A=r"""{\setbeamertemplate{footline}
 { 
  {\usebeamerfont{section in head/foot}
@@ -64,8 +65,10 @@ class Song:
         self.lyrics=lyrics
         self.cat=cat
         self.errors=errors
+    def nameRef(self):
+        return self.title+json.dumps(self.alttitles)+self.Wtitle+json.dumps(self.Walttitles)+self.artist
     def dictionarify(self):
-        song_dictionaries[self.title+json.dumps(self.alttitles)+self.Wtitle+json.dumps(self.Walttitles)+self.artist]={"title":self.title,
+        song_dictionaries[self.nameRef()]={"title":self.title,
                                   "Wtitle":self.Wtitle,"alttitles":self.alttitles,"Walttitles":self.Walttitles,"cat":self.cat,
                                   "artist":self.artist,"lyrics":self.lyrics,"errors":self.errors}
     def stanzaSplit(self,stanza,attempt=1):#function to rejoin and manually split a stanza
@@ -209,7 +212,10 @@ class Song:
 #%% Document class
 
 class Document:
-    def __init__(self,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,beforeWorship=["1","2","3"],worship=[],afterWorship=["4"]):
+    def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True):
+        self.name=name
+        self.title=title
+        self.author=author
         self.language=language
         self.songs=songs
         self.aspect_ratio=aspect_ratio
@@ -218,15 +224,16 @@ class Document:
         self.Wcol=Wcolour
         self.logo_address=logo_address
         self.uniformSize=uniformSize
-        self.beforeWorship=beforeWorship
-        self.worship=worship
-        self.afterWorship=afterWorship
+        
     def dictionarify(self):
         global docu
-        docu={"language":self.language,"aspect_ratio":self.aspect_ratio,
+        docu["document"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
                   "theme":self.theme,"Ecolour":self.Ecol,"Wcolour":self.Wcol,"logo_address":self.logo_address,
-                  "uniformSize":self.uniformSize,"beforeWorship":self.beforeWorship,
-                  "afterWorship":self.afterWorship}
+                  "uniformSize":self.uniformSize}
+    def rename(self,new_name):
+        docu["document"].pop(self.name)
+        self.name=new_name
+        self.dictionarify()
     def preamble(self):
         text="\\documentclass[aspectratio="+self.aspect_ratio+"]{beamer}\n"
         text+="\\usepackage{graphicx} % Required for inserting images\n"
@@ -245,11 +252,12 @@ class Document:
         text+="    \\insertauthor\n"
         text+="  \\end{beamercolorbox}%\n  }\n}\n\n\n"
         text+="\\setbeamertemplate{navigation symbols}{}\n"
-        text+="\\title{Hymns and songs}\n\\author{Aberystwyth CU}\n\\date{}\n\n"
+        text+="\\title{"+self.title+"}\n\\author{"+self.author+"}\n\\date{}\n\n"
         text+="\\usepackage{hyperref}\n\n"
         text+="%text allignment package\n\\usepackage{ragged2e}\n\\Centering\n\n"
         text+="%allows text to fill whole width of slides\n\\setbeamersize{text margin left=0pt,text margin right=0pt}\n\n"
-        text+="%CU logo on every slide\n\\logo{\\includegraphics[height=1.5cm]{"+self.logo_address+"}}\n\n"
+        if self.logo_address:
+            text+="%CU logo on every slide\n\\logo{\\includegraphics[height=1.5cm]{"+self.logo_address+"}}\n\n"
         text+="%the following code removes the dots from the navigation\n"
         text+="\\makeatletter\n\\def\\beamer@writeslidentry{\\clearpage\\beamer@notesactions}\n\\makeatother\n\n"
         return text
@@ -290,7 +298,7 @@ class Document:
         text+="\\end{itemize}\n\\column{0.05\\textwidth}\n"
         text+="\\end{columns}\n\\end{frame}\n\n"        
         return text
-    def writeDoc(self):
+    def write(self):
         categories=[]
         c=["Traditional","Contemporary","Modern"]#category names- this list could be updated to be passed as a parameter
         ca=["Trad","Contemp","Mod"]#abbreviated category names will show on navigation bar
@@ -323,49 +331,106 @@ class Document:
                 text+=song.write(self.language,self.uniformSize)
         text+="\\end{document}"
         return text
+    
+    def create(self):
+        name=self.name+".tex"
+        with open(name,"w") as f:
+            print(self.write(),file=f)
+
+class Equip(Document):
+    def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,beforeWorship=["1","2","3"],worship=[],afterWorship=["4"]):
+        super().__init__(name,title,author,language,songs,aspect_ratio,theme,Ecolour,Wcolour,logo_address,uniformSize)
+        self.beforeWorship=beforeWorship
+        self.worship=[self.songs[request] for request in worship if request in self.songs]
+        self.afterWorship=afterWorship
+    def dictionarify(self):
+        global docu
+        docu["equip"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
+                  "theme":self.theme,"Ecolour":self.Ecol,"Wcolour":self.Wcol,"logo_address":self.logo_address,
+                  "uniformSize":self.uniformSize,"beforeWorship":self.beforeWorship,"worship":[request.nameRef() for request in self.worship],
+                  "afterWorship":self.afterWorship}  
+    def rename(self,new_name):
+        docu["equip"].pop(self.name)
+        self.name=new_name
+        self.dictionarify()
+    def findSong(self,user_input,count=0):
+        possible_songs=[a_song for a_song in self.songs.keys() if user_input.upper() in a_song.upper()]
+        if possible_songs==[]:
+            print("No songs appear to match. Try again:")
+            return
+        print("Which of these songs are you looking for?")
+        for i in range(len(possible_songs)):
+            print(str(i+1)+")  "+possible_songs[i])
+        new_input=int(input("Type the number associated with the song you want: "))
+        try: 
+            result=possible_songs[new_input-1]
+            return result
+        except:
+            if count<3:
+                count+=1
+                self.findSong(user_input,count)
+            else: return
+        
     def plan(self):
         print("Choose the slides for the beginning, then pressing enter after each slide.")
-        print("Press enter with no input to move to worship section, and likewise for the end.")
+        print("Press enter with no input to move to the end.")
         
-        schedule=[[],[],[]]
+        schedule=[[],[]]
         for section in schedule:
             user_input=" "
             while user_input!="":
                 user_input=input()
                 if user_input!="": section.append(user_input)
         self.beforeWorship=schedule[0]
-        self.afterWorship=schedule[2]
-        self.worship=[self.songs[request] for request in schedule[1] if request in self.songs]
+        self.afterWorship=schedule[1]
+        self.planWorship()
     def planWorship(self):
-        print("Choose songs, pressing enter after each slide.")
+        print("Choose songs, pressing enter after each entry.")
         user_input=" "
         section=[]
         while user_input!="":
             user_input=input()
-            if user_input!="": section.append(user_input)
-     
-        self.worship=[self.songs[request] for request in section if request in self.songs]
+            if user_input=="": continue
+            elif user_input in self.songs:
+                section.append(self.songs[user_input])
+            else: 
+                result=self.songs[self.findSong(user_input)]
+                if result:
+                    section.append(result)
+        
+        self.worship=section
     def getSlide(self,file_name):
         text="\\includepdf{"
         text+=file_name+".png"
         text+="}\n"
         return text
-    def writeEquip(self):
+    def write(self):
         text=self.preamble()
         text+="\\begin{document}\n\n"
         for slide in self.beforeWorship:
             text+=self.getSlide(slide)
         for request in self.worship:
-            text+="\\section{ "+request.title+" }\n\n"
+            text+="\\section{ "
+            text+=request.title
+            text+=" }\n\n"
             text+=request.write(self.language,self.uniformSize)
         for slide in self.afterWorship:
             text+=self.getSlide(slide)
         text+="\\end{document}"
         return text
-        
-#%%
-
-        
+class File(Document):
+    def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,beforeWorship=["1","2","3"],worship=[],afterWorship=["4"]):
+        super().__init__(name,title,author,language,songs,aspect_ratio,theme,Ecolour,Wcolour,logo_address,uniformSize)
+    def dictionarify(self):
+        global docu
+        docu["file"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
+                  "theme":self.theme,"Ecolour":self.Ecol,"Wcolour":self.Wcol,"logo_address":self.logo_address,
+                  "uniformSize":self.uniformSize,"beforeWorship":self.beforeWorship,"worship":[request.nameRef() for request in self.worship],
+                  "afterWorship":self.afterWorship}  
+    def rename(self,new_name):
+        docu["file"].pop(self.name)
+        self.name=new_name
+        self.dictionarify()              
     
 #%% read song function
 def read_song(file):
@@ -389,7 +454,8 @@ def read_song(file):
     song=[line.rstrip() for line in song] #removes \n and spaces from each line
 
    
-    title=Wtitle=""
+    title=""
+    Wtitle=""
     
     for a in range(2):#takes a line in first two lines begining with W- as Welsh title
         if song[a].startswith("W-"): 
@@ -522,7 +588,8 @@ def saveSongs(file="songs JSON.txt"):
         print(text,file=f)
 
 def saveDoc(file="document JSON.txt"):
-    doc.dictionarify()
+    for doc in documents.values():
+        doc.dictionarify()
     with open(file,"w") as f:
         print(json.dumps(docu),file=f)
 
@@ -554,9 +621,10 @@ docu=json.loads(text)
 for songs in song_dictionaries.values():
     makeClass(songs)   
 
-doc=Document(**docu)
+for document in docu["document"].values():
+    documents[document["name"]]=Document(**document)
+for document in docu["equip"].values():
+    documents[document["name"]]=Equip(**document)
+for document in docu["file"].values():
+    documents[document["name"]]=File(**document)
 
-
-def test():
-    with open("test.tex","w") as f:
-        print(doc.writeDoc(),file=f)
