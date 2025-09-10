@@ -183,27 +183,47 @@ class Song:
         else: items={}
         items.discard("")#prevent empty entries
         return items
+    def uniqueEntry(self,item,language):
+        items=self.allTitles(language)
+        similar=[]
+        for a_song in song.values():
+            if item in a_song.allTitles(language) and a_song!=self:
+                similar.append(a_song)
+        if similar==[]:
+            return item
+        elif self.artist and self.artist not in [a_song.artist for a_song in similar]:
+            return item+" "+self.artist
+        else:
+            sim=[]
+            for a_song in similar:
+                sim.append(a_song.allTitles(language))
+            different=[other_title for other_title in items if other_title not in sim]
+            if different: return item+" ("+different[0]+")"
+            else:
+                print("similarity error: "+item)
+                return ""
     def getContents(self,language="Bil"):
         items=self.allTitles(language)
         new_items=[]
         for item in items:
-            similar=[]
-            for a_song in song.values():
-                if item in a_song.allTitles(language) and a_song!=self:
-                    similar.append(a_song)
-            if similar==[]:
-                new_items.append(item)
-            elif self.artist and self.artist not in [a_song.artist for a_song in similar]:
-                new_items.append(item+" "+self.artist)
-            else:
-                sim=[]
-                for a_song in similar:
-                    sim.append(a_song.allTitles(language))
-                different=[other_title for other_title in items if other_title not in sim]
-                if different: new_items.append(item+" ("+different[0]+")")
-                else:print("similarity error: "+item)
+            new_items.append(self.uniqueEntry(item,language))
+            
         hyperref=f'{self.title}{self.alttitles}{self.artist}'    
         return [(item,hyperref,self.cat) for item in new_items]
+    def getInfo(self):
+        text="Title:\n  "
+        text+=self.title
+        
+        if self.artist: 
+            text+="\nArtist:\n  "
+            text+=self.artist.strip('(,)')
+        if self.alttitles: 
+            text+="\nOther titles:"
+            for t in self.alttitles:
+                text+="\n  "
+                text+=t
+        
+        return text
        
         
         
@@ -627,4 +647,375 @@ for document in docu["equip"].values():
     documents[document["name"]]=Equip(**document)
 for document in docu["file"].values():
     documents[document["name"]]=File(**document)
+#%% TKinter
 
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
+from tkinter import colorchooser
+
+def shuffle(widget):
+    pos=widget.grid_info()
+def shuffleSelect(widget,flag=True):
+    pos=widget.grid_info()
+    if flag:
+        pos['row']+=10
+        flag=False
+    else:
+        pos['row']-=10
+        flag=True
+    widget.grid(**pos)
+
+class SongEditor(ttk.Frame):
+    #def updateSanza(self,i,stanza):
+    
+    def writeStanza(self,i,stanza):
+        
+        self.var[i]={}
+        self.var[i][0]=tk.StringVar()
+        self.var[i][0].set(stanza[0])
+        lfr=ttk.Frame(self)#frame containing stanza label
+        lfr.grid(row=i*2,column=0,sticky='nw')
+        label=ttk.Label(lfr,textvariable=self.var[i][0])
+        label.grid(row=0,column=0,sticky='nw')
+        rename_label=ttk.Button(lfr,text="rename",width=7,command=lambda l=label,s=stanza:editInfo(l,rename_label,s[0],mesg="rename"))
+        rename_label.grid(row=1,column=0,sticky='w')
+        shuffle=ttk.Button(lfr,text='shuffle',width=7)
+        shuffle.grid(row=2,column=0,sticky='w')
+        for j in [2,3,4]:
+            self.var[i][j]={}
+            fr=ttk.Frame(self)
+            fr.grid(row=i*2,column=j,sticky='nsew')
+            for k,slide in enumerate(stanza[j]):
+                self.var[i][j][k]=tk.StringVar()
+                try:
+                    self.var[i][j][k].set('\n'.join(slide))
+                except:
+                    self.var[i][j][k].set('\n'.join(['\n'.join(line) for line in slide]))
+                label=ttk.Label(fr,textvariable=self.var[i][j][k])
+                label.grid(row=(k*2)+1,column=0,sticky='nw')
+                sep = ttk.Separator(fr, orient="horizontal")
+                sep.grid(row=(k*2),column=0,sticky='we')
+    def __init__(self,parent,song,*args,**kwargs):
+        super().__init__(parent,*args,**kwargs)
+        self.song=song
+        self.var={}
+        for i,stanza in enumerate(self.song.lyrics):
+            self.writeStanza(i, stanza)
+        self.grid_columnconfigure(0,minsize=40)
+        self.grid_columnconfigure(2,minsize=270)
+        self.grid_columnconfigure(3,minsize=270)
+        self.grid_columnconfigure(4,minsize=270)
+                
+            
+class DocumentEditor(ttk.Frame):
+    def editSong(self,a_song):
+        edit_window=tk.Toplevel(root)
+        edit_window.title=a_song.title
+        SongEditor(edit_window, a_song).grid(row=0,column=0)
+    def infoCreate(self,song,index,event):
+        global info
+        flag=False
+        try:
+            pos=self.info.grid_info()
+            if pos['row']!=index: flag=True
+        except:flag=True
+        finally:
+            self.info.destroy()
+            if flag:
+                self.info=ttk.Frame(self.song_check)
+                self.info.grid(column=0,row=index,columnspan=2,sticky='ew') 
+                self.info_label=ttk.Label(self.info,text=song.getInfo())
+                self.info_label.grid(column=0,row=0,sticky='w')
+                self.info_button=ttk.Button(self.info,text="View",width=5,command=lambda s=song: self.editSong(s))
+                self.info_button.grid(column=1,row=0,sticky='se')
+    def updateSelection(self,a_song):
+        if self.a[a_song.nameRef()].get()==1:
+            self.file.songs[a_song.nameRef()]=a_song
+        else: self.file.songs.pop(a_song.nameRef(),None)
+    def __init__(self,parent,doc,*args,**kwargs):
+        super().__init__(parent,*args,**kwargs)
+        self.grid(column=0, row=0, sticky="nwes")
+        self.columnconfigure(0,weight=3)
+        self.columnconfigure(1,weight=1)
+        self.rowconfigure(0,weight=1)
+        
+        self.file=doc
+        
+
+        ######parameter window
+        self.doc_params=ttk.Frame(self)
+        self.doc_params.grid(column=0,row=0,sticky="N")
+
+        #create stringvars for each parameter
+        self.namevar=tk.StringVar()
+        self.titlevar=tk.StringVar()
+        self.authvar=tk.StringVar()
+        self.logovar=tk.StringVar()
+        self.ratvar=tk.StringVar()
+        self.langvar=tk.StringVar()
+        self.themevar=tk.StringVar()
+        self.ecolvar=tk.StringVar()
+        self.wcolvar=tk.StringVar()
+        self.sizevar=tk.BooleanVar()
+        self.namevar.set(self.file.name)
+        self.titlevar.set(self.file.title)
+        self.authvar.set(self.file.author)
+        self.logovar.set(self.file.logo_address)
+        self.ratvar.set(self.file.aspect_ratio)
+        self.langvar.set(self.file.language)
+        self.themevar.set(self.file.theme)
+        self.ecolvar.set('#'+self.file.Ecol)
+        self.wcolvar.set(self.file.Wcol)
+        self.sizevar.set(self.file.uniformSize)
+
+        # Open logo image using Pillow
+        #image = Image.open(file.logo_address)
+
+        # Convert the Image object to a Tkinter-compatible PhotoImage object
+        #photo = ImageTk.PhotoImage(image)
+
+        self.doc_name=ttk.Label(self.doc_params, textvariable=self.namevar,font="TkHeadingFont")
+        self.name_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_name,self.name_edit,self.file.name))
+
+        ttk.Label(self.doc_params,text="Title").grid(column=0,row=1,sticky='w')
+        self.doc_title=ttk.Label(self.doc_params,textvariable=self.titlevar)
+        self.title_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_title,self.title_edit,self.file.title))
+
+        ttk.Label(self.doc_params,text="Author").grid(column=2,row=1,sticky='w')
+        self.doc_auth=ttk.Label(self.doc_params,textvariable=self.authvar)
+        self.auth_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_auth,self.auth_edit,self.file.author))
+
+        ttk.Label(self.doc_params,text="Logo").grid(column=4,row=1,sticky='w')
+        self.doc_logo=ttk.Label(self.doc_params,textvariable=self.logovar)
+        self.logo_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_logo,self.logo_edit,self.file.logo_address))
+        #logo_thumb=ttk.Label(doc_params,image=photo)#at present, this won't update
+
+        ttk.Label(self.doc_params,text="Theme").grid(column=0,row=4,sticky='w')
+        self.doc_theme=ttk.Combobox(self.doc_params,textvariable=self.themevar)
+        self.doc_theme.bind('<<ComboboxSelected>>',lambda e,d=self.themevar,f=self.file.theme: updateFromWidget(d,f,e))
+        self.doc_theme['values']=('Berlin',)
+
+        ttk.Label(self.doc_params,text="Aspect ratio").grid(column=2,row=4,sticky='w')
+        self.doc_rat=ttk.Combobox(self.doc_params,textvariable=self.ratvar)
+        self.doc_rat.bind('<<ComboboxSelected>>',lambda e,d=self.ratvar,f=self.file.aspect_ratio: updateFromWidget(d,f,e))
+        self.doc_rat['values']=('169','43','1610','149','54','32')
+        self.doc_rat.state(["readonly"])
+
+        ttk.Label(self.doc_params,text="Uniform size").grid(column=4,row=4,sticky='w')
+        self.doc_size=ttk.Checkbutton(self.doc_params,text="Make font size uniform for each song",variable=self.sizevar,command=lambda:updateFromWidget(self.sizevar, self.file.uniformSize))
+
+        """
+        def chooseColour(event,variable):
+            variable.set(colorchooser.askcolor(initialcolor='#ff0000'))
+        ttk.Label(doc_params,text="English colour").grid(column=2,row=6,sticky='w')
+        doc_ecol=ttk.Entry(doc_params)
+        doc_ecol.winfo_rgb(color=ecolvar.get())
+        doc_ecol.grid(column=2,row=7)
+        doc_ecol.bind("<Button-1>",lambda e,c=ecolvar:chooseColour(e,c))
+        """
+
+        self.create_button=ttk.Button(self.doc_params,text="Create",command=self.file.create)
+
+        self.doc_name.grid(column=0,row=0,columnspan=5)
+        self.name_edit.grid(column=10,row=0)
+        self.doc_title.grid(row=2,column=0,sticky='w')
+        self.title_edit.grid(row=2,column=1,sticky='w')
+        self.doc_auth.grid(row=2,column=2,sticky='w')
+        self.auth_edit.grid(row=2,column=3,sticky='w')
+        self.doc_logo.grid(column=4,row=2,sticky='w')
+        self.logo_edit.grid(column=5,row=2,sticky='w')
+        #self.logo_thumb.grid(column=4,row=3,columnspan=2)
+        self.doc_theme.grid(column=0,row=5,columnspan=2,sticky='w')
+        self.doc_rat.grid(column=2,row=5,columnspan=2,sticky='w')
+        self.doc_size.grid(column=4,row=5,columnspan=2,sticky='w')
+        self.create_button.grid(column=10,row=10)
+
+
+
+
+        ######song selection window
+        self.song_check_canvas=tk.Canvas(self,width=245)#canvas is scrollable
+        self.song_check_canvas.grid(column=1,row=0,sticky="nse")
+
+
+        self.song_check=ttk.Frame(self.song_check_canvas)#frame inside canvas
+        self.song_check.grid(column=0,row=0,sticky='ew')
+
+        ###scrollbar for songs
+        self.song_check_scroll=ttk.Scrollbar(self,orient=tk.VERTICAL,command=self.song_check_canvas.yview)
+        self.song_check_scroll.grid(column=2,row=0, sticky="ns")
+
+        self.song_check_canvas.create_window((0, 0), window=self.song_check, anchor="nw")
+        self.song_check_canvas.configure(yscrollcommand=self.song_check_scroll.set)
+
+        # Configure the scrollable frame
+        self.song_check.bind(
+            "<Configure>",
+            lambda e: self.song_check_canvas.configure(scrollregion=self.song_check_canvas.bbox("all")))
+
+
+
+        #dictionary to hold info on inclusion of songs in document
+        self.a={} 
+        for a_song in song.keys():
+            if a_song in self.file.songs.keys():
+                self.a[a_song]=tk.IntVar(value=1)
+            else: self.a[a_song]=tk.IntVar()
+            
+        
+                    
+                    
+        #checkbutton for each song
+        sorted_song = {key: song[key] for key in sorted(song)}
+        for i,a_song in enumerate(sorted_song.values()):
+            ttk.Checkbutton(self.song_check,text=a_song.uniqueEntry(a_song.title,self.file.language),variable=self.a[a_song.nameRef()],command=lambda s=a_song:self.updateSelection(s)).grid(column=0,row=i*2,sticky="w")
+            elipsis=ttk.Label(self.song_check,text="...")
+            elipsis.bind("<Button-1>",lambda e,s=a_song, j=(2*i)+1: self.infoCreate(s,j,e))
+            elipsis.grid(column=1,row=i*2,sticky="e")
+
+        self.info=ttk.Label(self.song_check)    
+
+
+
+def editInfo(textwidget,buttonwidget,variable,mesg="change"):
+    parent=root.nametowidget(textwidget.winfo_parent())
+    grid=textwidget.grid_info()
+    var=textwidget.cget("textvariable")
+    font=textwidget.cget("font")
+    textwidget.destroy()        
+    textwidget=ttk.Entry(parent,textvariable=var)
+    buttonwidget.config(text="update",command=lambda: saveInfo(textwidget,buttonwidget,variable,font,mesg))
+    textwidget.grid(**grid)
+    
+    
+def saveInfo(textwidget,buttonwidget,variable,font,mesg):
+    parent=root.nametowidget(textwidget.winfo_parent())
+    grid=textwidget.grid_info()
+    var=textwidget.cget("textvariable")
+    variable=textwidget.get()
+    textwidget.destroy()        
+    textwidget=ttk.Label(parent,textvariable=var,font=font)
+    buttonwidget.config(text=mesg,command=lambda: editInfo(textwidget,buttonwidget,variable,mesg))
+    textwidget.grid(**grid)
+    
+def updateFromWidget(widget_var,variable,*args):    
+    variable=widget_var.get()
+
+
+############create root window
+root=tk.Tk()
+root.title("Lyrics manager")
+root.geometry('1250x600')
+
+
+############song view
+list_of_songs=[a_song for a_song in song.values()]
+list_of_songs=sorted(list_of_songs, key=lambda x: x.uniqueEntry(x.title,'Eng'))
+def updateDetails(event,index):
+    global editor
+    try:
+        editor.destroy()
+    except: pass
+    try:
+        editor=SongEditor(song_frame,filtered_songs[index[0]])
+    except:
+        try:
+            editor=SongEditor(song_frame,list_of_songs[index[0]])
+        except: pass
+    finally:
+        editor.grid(column=1,row=0,rowspan=2,sticky='n')
+    
+
+song_frame=ttk.Frame(root,padding="5 5 5 5")
+
+def on_focus_in(event):
+    if search_bar.get() == "Search":
+        search_bar.delete(0, tk.END)
+
+def on_focus_out(event):
+    if search_bar.get() == "":
+        search_bar.insert(0, "Search")
+        
+def update_listbox(*args):
+    """Filter the Listbox items based on the search query."""
+    global song_list
+    global filtered_songs
+    search_query = search_var.get().lower()
+    if search_query!="search":
+        filtered_songs = [a_song for a_song in list_of_songs if search_query in a_song.nameRef().lower()]
+    else: filtered_songs=list_of_songs
+    filtered_items=[a_song.uniqueEntry(a_song.title,'Eng') for a_song in filtered_songs]
+    listvar=tk.StringVar(value=filtered_items)
+    song_list['listvariable']=listvar
+
+search_var=tk.StringVar()
+
+
+
+search_bar = tk.Entry(song_frame, textvariable=search_var, width=37)
+search_bar.grid(row=0,column=0)
+search_bar.insert(0, "Search")
+
+search_bar.bind("<FocusIn>", on_focus_in)
+search_bar.bind("<FocusOut>", on_focus_out)
+
+list_of_song_names=[a_song.uniqueEntry(a_song.title,'Eng') for a_song in list_of_songs]
+listvar=tk.StringVar(value=list_of_song_names)
+
+song_list=tk.Listbox(song_frame,listvariable=listvar,width=37)
+song_list.bind("<<ListboxSelect>>", lambda e: updateDetails(e,song_list.curselection()))
+song_list.grid(column=0,row=1,sticky='ns')
+search_var.trace("w", update_listbox)
+
+song_frame.rowconfigure(1,weight=1)
+song_frame.columnconfigure(1,weight=1)
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+
+
+root.option_add('*tearOff', tk.FALSE)#prevents menus from tearing off
+#
+#
+#
+def make_document_frame(doc):
+    global doc_frame
+    global song_frame
+    try:doc_frame.grid_remove()
+    except:pass
+    doc_frame=DocumentEditor(root, doc)
+    song_frame.grid_remove()
+def make_song_frame():
+    global doc_frame
+    global song_frame
+    song_frame.grid(row=0,column=0,sticky='nwes')
+    doc_frame.grid_remove()
+###############create menubar#########################
+menubar = tk.Menu(root)
+root['menu'] = menubar
+
+#Documents menu
+doc_menu=tk.Menu(menubar)
+menubar.add_cascade(menu=doc_menu, label='Documents')
+for instance in docu["document"].keys():
+    doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+if docu["equip"]:
+    doc_menu.add_separator()
+    doc_menu.add_command(label="Meeting slides")
+    for instance in docu["equip"].keys():
+        doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+if docu["file"]:
+    doc_menu.add_separator()
+    doc_menu.add_command(label="Lyric files")
+    for instance in docu["file"].keys():
+        doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+
+#song editor
+menubar.add_command(label="Song editor",command=make_song_frame)
+#######################################################
+#
+#
+make_document_frame(documents["CU lyrics"])
+
+  
+root.mainloop()
