@@ -5,6 +5,43 @@ Created on Mon Aug 11 13:57:39 2025
 @author: charl
 """
 #%% Song class
+"""
+import subprocess
+
+def compile_latex(file_name):
+    try:
+        # Run XeLaTeX
+        subprocess.run(["xelatex", file_name], check=True)
+        
+        # Run BibTeX
+        subprocess.run(["bibtex", file_name.replace(".tex", "")], check=True)
+        
+        # Run MakeIndex
+        subprocess.run(["makeindex", file_name.replace(".tex", ".idx")], check=True)
+        
+        # Run XeLaTeX twice more for proper references
+        subprocess.run(["xelatex", file_name], check=True)
+        subprocess.run(["xelatex", file_name], check=True)
+        
+        print("Compilation successful!")
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred: {e}")
+
+# Example usage
+compile_latex("document.tex")
+"""
+"""
+Explanation
+xelatex: Compiles the .tex file into a PDF.
+bibtex: Processes the bibliography.
+makeindex: Generates the index file.
+Additional xelatex runs: Ensure all references, citations, and indices are updated correctly.
+Dependencies
+Ensure that XeLaTeX, BibTeX, and MakeIndex are installed and accessible via your system's PATH.
+The .tex file should include proper bibliography and index commands.
+"""
+
+
 import json
 song={}
 docu={}
@@ -56,6 +93,26 @@ I="""
 """
 
 class Song:
+    def update(self, attr_name, new_value, *args):
+        
+        if hasattr(self, attr_name):# Check if the attribute exists
+            try:value=new_value.get()
+            except:value=new_value
+            finally:
+                setattr(self, attr_name, value)  # Update the attribute
+        else: print(attr_name,' not found')
+    def updateBil(self,index):
+        englishStanza=[]
+        welshStanza=[]
+        for slide in self.lyrics[index][2]:
+            englishStanza+=slide
+        for slide in self.lyrics[index][3]:
+            welshStanza+=slide
+        bilingualStanza=[[[e,c] for e,c in zip(englishStanza,welshStanza)]]
+        new_stanza_list=list(self.lyrics[index])
+        new_stanza_list[4]=bilingualStanza
+        new_stanza_tuple=tuple(new_stanza_list)
+        self.lyrics[index]=new_stanza_tuple
     def __init__(self,title,alttitles,artist,cat,Wtitle,Walttitles,lyrics,errors):
         self.title=title
         self.alttitles=alttitles
@@ -232,24 +289,40 @@ class Song:
 #%% Document class
 
 class Document:
-    def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True):
+    def update(self, attr_name, new_value, *args):
+        
+        if hasattr(self, attr_name):# Check if the attribute exists
+            try:value=new_value.get()
+            except:value=new_value
+            finally:
+                setattr(self, attr_name, value)  # Update the attribute
+        else: print(attr_name,' not found')
+    def __init__(self,name,title,author,language="Eng",songs=[a_song for a_song in song.keys()],aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True):
         self.name=name
         self.title=title
         self.author=author
         self.language=language
-        self.songs=songs
+        self.songs={}
+        for a_song in songs:
+            if a_song in song:
+                self.songs[a_song]=song[a_song]
         self.aspect_ratio=aspect_ratio
         self.theme=theme
         self.Ecol=Ecolour
         self.Wcol=Wcolour
         self.logo_address=logo_address
         self.uniformSize=uniformSize
+        self.type='document'
         
     def dictionarify(self):
         global docu
         docu["document"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
                   "theme":self.theme,"Ecolour":self.Ecol,"Wcolour":self.Wcol,"logo_address":self.logo_address,
-                  "uniformSize":self.uniformSize}
+                  "uniformSize":self.uniformSize,"songs":[a_song for a_song in self.songs.keys()]}
+    def delete(self):
+        docu["document"].pop(self.name,None)
+        documents.pop(self.name,None)
+        del self
     def rename(self,new_name):
         docu["document"].pop(self.name)
         self.name=new_name
@@ -356,6 +429,7 @@ class Document:
         name=self.name+".tex"
         with open(name,"w") as f:
             print(self.write(),file=f)
+        #compile_latex(name)
 
 class Equip(Document):
     def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,beforeWorship=["1","2","3"],worship=[],afterWorship=["4"]):
@@ -363,6 +437,7 @@ class Equip(Document):
         self.beforeWorship=beforeWorship
         self.worship=[self.songs[request] for request in worship if request in self.songs]
         self.afterWorship=afterWorship
+        self.type='equip'
     def dictionarify(self):
         global docu
         docu["equip"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
@@ -441,6 +516,7 @@ class Equip(Document):
 class File(Document):
     def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,beforeWorship=["1","2","3"],worship=[],afterWorship=["4"]):
         super().__init__(name,title,author,language,songs,aspect_ratio,theme,Ecolour,Wcolour,logo_address,uniformSize)
+        self.type='file'
     def dictionarify(self):
         global docu
         docu["file"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
@@ -640,6 +716,15 @@ docu=json.loads(text)
 
 for songs in song_dictionaries.values():
     makeClass(songs)   
+    
+def classifyDoc(document,type_of_doc):
+    if type_of_doc=='document':
+        documents[document["name"]]=Document(**document)
+    elif type_of_doc=='equip':
+        documents[document["name"]]=Equip(**document)
+    elif type_of_doc=='file':
+        documents[document["name"]]=File(**document)
+    return documents[document["name"]]
 
 for document in docu["document"].values():
     documents[document["name"]]=Document(**document)
@@ -654,6 +739,17 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 from tkinter import colorchooser
 
+def on_close():
+    # Ask the user for confirmation
+    response = tk.messagebox.askyesnocancel("Save Changes", "Do you want to save changes before closing?")
+    
+    if response:  # User chose "Yes"
+        save()  # Save the content of the text widget
+        root.destroy()  # Close the window
+    elif response is False:  # User chose "No"
+        root.destroy()  # Close the window
+    # If response is None (Cancel), do nothing
+
 def shuffle(widget):
     pos=widget.grid_info()
 def shuffleSelect(widget,flag=True):
@@ -665,47 +761,204 @@ def shuffleSelect(widget,flag=True):
         pos['row']-=10
         flag=True
     widget.grid(**pos)
+    
+class MultilineEntry(tk.Text):
+    def update_size(self,event=None):
+        # Get the number of lines and the longest line
+        lines = self.get("1.0", "end-1c").split("\n")
+        max_width = max(len(line) for line in lines)
+        max_width= max(max_width,25)
+        height = len(lines)    
+        # Update the widget size
+        self.config(width=max_width, height=height)
+    def __init__(self,parent,textvariable,*args,**kwargs):
+        super().__init__(parent,*args,**kwargs)
+        self.insert('1.0',textvariable)
+        self.update_size()
+        self.grid(row=0,column=0,sticky='nwes')
+        self.bind("<KeyRelease>", self.update_size)
 
+class Menubar(tk.Menu):
+    def __init__(self,parent,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        
+
+        #Documents menu
+        self.doc_menu=tk.Menu(self)
+        self.add_cascade(menu=self.doc_menu, label='Documents')
+        for instance in docu["document"].keys():
+            self.doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+        if docu["equip"]:
+            self.doc_menu.add_separator()
+            self.doc_menu.add_command(label="Meeting slides")
+            for instance in docu["equip"].keys():
+                self.doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+        if docu["file"]:
+            self.doc_menu.add_separator()
+            self.doc_menu.add_command(label="Lyric files")
+            for instance in docu["file"].keys():
+                self.doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+
+        #song editor
+        self.add_command(label="Song editor",command=make_song_frame)
+        
 class SongEditor(ttk.Frame):
     #def updateSanza(self,i,stanza):
-    
+    def writeStanzaFrame(self,i,j,stanza):
+        self.var[i][j]={}
+        fr=ttk.Frame(self.lyrics)#frame containing each language of stanza
+        fr.grid(row=i*2,column=j,sticky='nsew')
+        for k,slide in enumerate(stanza[j]):
+            self.var[i][j][k]=tk.StringVar()
+            try:
+                #for single language stanzas
+                self.var[i][j][k].set('\n'.join(slide))
+            except:
+                #for bilingual stanza
+                self.var[i][j][k].set('\n'.join(['\n'.join(line) for line in slide]))
+            label=ttk.Label(fr,textvariable=self.var[i][j][k])
+            label.grid(row=(k*2)+1,column=0,sticky='nw')
+            sep = ttk.Separator(fr, orient="horizontal")
+            sep.grid(row=(k*2),column=0,sticky='we')#separator at top of each slide
+        #at end of stanza frame:
+        stanza_buttons=ttk.Frame(fr)
+        stanza_buttons.grid(row=(k*2)+3,column=0,sticky='w')
+        if stanza[j][0]:
+            split_slides=ttk.Label(stanza_buttons,text='split')
+            split_slides.grid(row=0,column=0)
+            split_slides.bind("<Button-1>",lambda e,s=stanza[j]:self.splitCommand(s,e))
+        if j!=4:
+            edit_stanza=ttk.Label(stanza_buttons,text='edit')
+            edit_stanza.grid(row=0,column=1)
+            edit_stanza.bind("<Button-1>",lambda e,s=stanza[j],i=i,j=j,f=fr:self.editStanza(s, i, j, f, e))
+        else:
+            update_button=ttk.Label(stanza_buttons,text='update')
+            update_button.grid(row=0,column=1)
+            update_button.bind("<Button-1>",lambda e,i=i,s=stanza,f=fr:self.updateBil(i, s, f, e) )
+    def updateBil(self,i,stanza,frame,*args):
+        self.song.updateBil(i)
+        self.writeStanzaFrame(i,4,self.song.lyrics[i])
+        frame.grid_forget()
     def writeStanza(self,i,stanza):
         
         self.var[i]={}
         self.var[i][0]=tk.StringVar()
         self.var[i][0].set(stanza[0])
-        lfr=ttk.Frame(self)#frame containing stanza label
-        lfr.grid(row=i*2,column=0,sticky='nw')
+        lfr=ttk.Frame(self.lyrics)#frame containing stanza label
+        lfr.grid(row=i*2,column=0,sticky='nw')#frame for the stanza label
         label=ttk.Label(lfr,textvariable=self.var[i][0])
         label.grid(row=0,column=0,sticky='nw')
-        rename_label=ttk.Button(lfr,text="rename",width=7,command=lambda l=label,s=stanza:editInfo(l,rename_label,s[0],mesg="rename"))
-        rename_label.grid(row=1,column=0,sticky='w')
+        #rename_label=ttk.Button(lfr,text="rename",width=7,command=lambda l=label,s=stanza:editInfo(l,rename_label,self.song,s[0],mesg="rename"))
+        #rename_label.grid(row=1,column=0,sticky='w')
         shuffle=ttk.Button(lfr,text='shuffle',width=7)
         shuffle.grid(row=2,column=0,sticky='w')
-        for j in [2,3,4]:
-            self.var[i][j]={}
-            fr=ttk.Frame(self)
-            fr.grid(row=i*2,column=j,sticky='nsew')
-            for k,slide in enumerate(stanza[j]):
-                self.var[i][j][k]=tk.StringVar()
-                try:
-                    self.var[i][j][k].set('\n'.join(slide))
-                except:
-                    self.var[i][j][k].set('\n'.join(['\n'.join(line) for line in slide]))
-                label=ttk.Label(fr,textvariable=self.var[i][j][k])
-                label.grid(row=(k*2)+1,column=0,sticky='nw')
-                sep = ttk.Separator(fr, orient="horizontal")
-                sep.grid(row=(k*2),column=0,sticky='we')
+        for j in [2,3,4]:#for the lyrics parts of the stanza tuple
+            self.writeStanzaFrame(i, j, stanza)
+            
+    def editStanza(self,stanza,i,j,frame,*args):
+        
+        #obtain grid information for frame
+        pos=frame.grid_info()
+        #create new frame to replace it
+        new_frame=ttk.Frame(self)
+        new_frame.columnconfigure(0,weight=1)
+        new_frame.rowconfigure(0,weight=1)
+        words=''
+        for slide in stanza:#collect slides into one text variable
+            words+='\n'.join(slide)
+        
+        #entry box to edit stanza
+        entry=MultilineEntry(new_frame, words)
+        #save button
+        save_button=ttk.Button(new_frame,text='Save',command=lambda s=stanza,i=i,j=j,f=new_frame,e=entry:self.saveStanza(s,i,j,f,e))
+        save_button.grid(row=1,column=0)
+        #swap frames
+        new_frame.grid(**pos)
+        frame.grid_forget()
+    def saveStanza(self,stanza, i, j, frame, entry):
+        edited=entry.get('1.0', 'end')
+        edit=edited.split('\n')
+        edit=[line for line in edit if line]#remove empty lines
+        new_stanza_list=[]
+        for l in range(5):
+            if l!=j:
+                new_stanza_list.append(self.song.lyrics[i][l])
+            else:
+                new_stanza_list.append([edit])
+        new_stanza_tuple=tuple(new_stanza_list)
+        self.song.lyrics[i]=new_stanza_tuple
+        self.writeStanzaFrame(i, j, self.song.lyrics[i])
+        frame.grid_forget()
+    def splitCommand(self,stanza,*args):
+        return
+    def infoFrame(self):
+        info=ttk.Frame(self)
+        ttk.Label(info,text='English title:').grid(row=0,column=0)
+        ttk.Label(info,text='Welsh title:').grid(row=1,column=0)
+        ttk.Label(info,text='Artist/author:').grid(row=0,column=6)
+        
+        self.song_title=ttk.Label(info,textvariable=self.titlevar)
+        self.title_edit=ttk.Button(info,text="change",command=lambda: editInfo(self.song_title,self.title_edit,self.song,'title'))
+        self.song_title.grid(row=0,column=1)
+        self.title_edit.grid(row=0,column=2)
+        
+        self.song_Wtitle=ttk.Label(info,textvariable=self.Wtitlevar)
+        self.Wtitle_edit=ttk.Button(info,text="change",command=lambda: editInfo(self.song_Wtitle,self.Wtitle_edit,self.song,'Wtitle'))
+        self.song_Wtitle.grid(row=1,column=1)
+        self.Wtitle_edit.grid(row=1,column=2)
+        
+        self.song_art=ttk.Label(info,textvariable=self.artvar)
+        self.art_edit=ttk.Button(info,text="change",command=lambda: editInfo(self.song_art,self.art_edit,self.song,'artist'))
+        self.song_art.grid(row=0,column=7)
+        self.art_edit.grid(row=0,column=8)
+        
+        ttk.Label(info,text='Other titles:').grid(row=0,column=3)
+        
+        ttk.Label(info,text='Category:').grid(row=1,column=6)
+        
+        self.song_alttitles=ttk.Label(info,textvariable=self.alttitlesvar)
+        self.alttitles_edit=ttk.Button(info,text="change",command=lambda: editInfo(self.song_alttitles,self.alttitles_edit,self.song,'alttitles'))
+        self.song_alttitles.grid(row=0,column=4)
+        self.alttitles_edit.grid(row=0,column=5)
+        
+        self.song_Walttitles=ttk.Label(info,textvariable=self.Walttitlesvar)
+        self.Walttitles_edit=ttk.Button(info,text="change",command=lambda: editInfo(self.song_Walttitles,self.Walttitles_edit,self.song,'Walttitles'))
+        self.song_Walttitles.grid(row=1,column=4)
+        self.Walttitles_edit.grid(row=1,column=5)
+        
+        self.song_cat=ttk.Label(info,textvariable=self.catvar)
+        self.cat_edit=ttk.Button(info,text="change",command=lambda: editInfo(self.song_cat,self.cat_edit,self.song,'cat'))
+        self.song_cat.grid(row=1,column=7)
+        self.cat_edit.grid(row=1,column=8)
+        return info
+    def newStanza(self):
+        i=len(self.song.lyrics)
+        self.song.lyrics.append(('','',[[]],[[]],[[]]))
+        self.writeStanza(i, self.song.lyrics[i])
     def __init__(self,parent,song,*args,**kwargs):
         super().__init__(parent,*args,**kwargs)
         self.song=song
         self.var={}
+        self.titlevar=tk.StringVar(value=self.song.title)
+        self.Wtitlevar=tk.StringVar(value=self.song.Wtitle)
+        self.artvar=tk.StringVar(value=self.song.artist)
+        self.alttitlesvar=tk.StringVar(value=self.song.alttitles)
+        self.Walttitlesvar=tk.StringVar(value=self.song.Walttitles)
+        self.catvar=tk.StringVar(value=self.song.cat)
+        self.info=self.infoFrame()
+        self.lyrics=ttk.Frame(self)
         for i,stanza in enumerate(self.song.lyrics):
             self.writeStanza(i, stanza)
-        self.grid_columnconfigure(0,minsize=40)
-        self.grid_columnconfigure(2,minsize=270)
-        self.grid_columnconfigure(3,minsize=270)
-        self.grid_columnconfigure(4,minsize=270)
+        self.new_stanza_button=ttk.Button(self,text='New stanza',width=12,command=self.newStanza)
+        self.new_stanza_button.grid(row=2,column=0,sticky='e')
+        self.lyrics.grid_columnconfigure(0,minsize=40)
+        self.lyrics.grid_columnconfigure(2,minsize=270)
+        self.lyrics.grid_columnconfigure(3,minsize=270)
+        self.lyrics.grid_columnconfigure(4,minsize=270)
+        
+        self.info.grid(row=0,column=0)
+        self.lyrics.grid(row=1,column=0)
+        
                 
             
 class DocumentEditor(ttk.Frame):
@@ -733,6 +986,17 @@ class DocumentEditor(ttk.Frame):
         if self.a[a_song.nameRef()].get()==1:
             self.file.songs[a_song.nameRef()]=a_song
         else: self.file.songs.pop(a_song.nameRef(),None)
+    def onDelete(self):
+        # Ask the user for confirmation
+        response = tk.messagebox.askyesno("Delete document", "Are you sure you want to delete this document?\nThis document will be permanently deleted")
+        
+        if response:  # User chose "Yes"
+            self.file.delete()  # Save the content of the text widget
+            self.grid_forget()
+            root['menu']=Menubar(root)
+            make_document_frame(documents["CU lyrics"])
+            del self
+        
     def __init__(self,parent,doc,*args,**kwargs):
         super().__init__(parent,*args,**kwargs)
         self.grid(column=0, row=0, sticky="nwes")
@@ -776,34 +1040,34 @@ class DocumentEditor(ttk.Frame):
         #photo = ImageTk.PhotoImage(image)
 
         self.doc_name=ttk.Label(self.doc_params, textvariable=self.namevar,font="TkHeadingFont")
-        self.name_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_name,self.name_edit,self.file.name))
+        self.name_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_name,self.name_edit,self.file,'name'))
 
         ttk.Label(self.doc_params,text="Title").grid(column=0,row=1,sticky='w')
         self.doc_title=ttk.Label(self.doc_params,textvariable=self.titlevar)
-        self.title_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_title,self.title_edit,self.file.title))
+        self.title_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_title,self.title_edit,self.file,'title'))
 
         ttk.Label(self.doc_params,text="Author").grid(column=2,row=1,sticky='w')
         self.doc_auth=ttk.Label(self.doc_params,textvariable=self.authvar)
-        self.auth_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_auth,self.auth_edit,self.file.author))
+        self.auth_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_auth,self.auth_edit,self.file,'author'))
 
         ttk.Label(self.doc_params,text="Logo").grid(column=4,row=1,sticky='w')
         self.doc_logo=ttk.Label(self.doc_params,textvariable=self.logovar)
-        self.logo_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_logo,self.logo_edit,self.file.logo_address))
+        self.logo_edit=ttk.Button(self.doc_params,text="change",command=lambda: editInfo(self.doc_logo,self.logo_edit,self.file,'logo_address'))
         #logo_thumb=ttk.Label(doc_params,image=photo)#at present, this won't update
 
         ttk.Label(self.doc_params,text="Theme").grid(column=0,row=4,sticky='w')
         self.doc_theme=ttk.Combobox(self.doc_params,textvariable=self.themevar)
-        self.doc_theme.bind('<<ComboboxSelected>>',lambda e,d=self.themevar,f=self.file.theme: updateFromWidget(d,f,e))
+        self.doc_theme.bind('<<ComboboxSelected>>',lambda e,d=self.themevar.get(): self.file.update('theme',d,e))
         self.doc_theme['values']=('Berlin',)
 
         ttk.Label(self.doc_params,text="Aspect ratio").grid(column=2,row=4,sticky='w')
         self.doc_rat=ttk.Combobox(self.doc_params,textvariable=self.ratvar)
-        self.doc_rat.bind('<<ComboboxSelected>>',lambda e,d=self.ratvar,f=self.file.aspect_ratio: updateFromWidget(d,f,e))
+        self.doc_rat.bind('<<ComboboxSelected>>',lambda e,d=self.ratvar.get(): self.file.update('aspect_ratio',d,e))
         self.doc_rat['values']=('169','43','1610','149','54','32')
         self.doc_rat.state(["readonly"])
 
         ttk.Label(self.doc_params,text="Uniform size").grid(column=4,row=4,sticky='w')
-        self.doc_size=ttk.Checkbutton(self.doc_params,text="Make font size uniform for each song",variable=self.sizevar,command=lambda:updateFromWidget(self.sizevar, self.file.uniformSize))
+        self.doc_size=ttk.Checkbutton(self.doc_params,text="Make font size uniform for each song",variable=self.sizevar,command=lambda:self.file.update('uniformSize',self.sizevar.get()))
 
         """
         def chooseColour(event,variable):
@@ -814,7 +1078,7 @@ class DocumentEditor(ttk.Frame):
         doc_ecol.grid(column=2,row=7)
         doc_ecol.bind("<Button-1>",lambda e,c=ecolvar:chooseColour(e,c))
         """
-
+        self.delete_button=ttk.Button(self.doc_params,text='delete',command=self.onDelete)
         self.create_button=ttk.Button(self.doc_params,text="Create",command=self.file.create)
 
         self.doc_name.grid(column=0,row=0,columnspan=5)
@@ -829,6 +1093,7 @@ class DocumentEditor(ttk.Frame):
         self.doc_theme.grid(column=0,row=5,columnspan=2,sticky='w')
         self.doc_rat.grid(column=2,row=5,columnspan=2,sticky='w')
         self.doc_size.grid(column=4,row=5,columnspan=2,sticky='w')
+        self.delete_button.grid(column=9,row=10)
         self.create_button.grid(column=10,row=10)
 
 
@@ -878,35 +1143,124 @@ class DocumentEditor(ttk.Frame):
 
 
 
-def editInfo(textwidget,buttonwidget,variable,mesg="change"):
+def editInfo(textwidget,buttonwidget,file,attr,mesg="change"):
     parent=root.nametowidget(textwidget.winfo_parent())
     grid=textwidget.grid_info()
     var=textwidget.cget("textvariable")
     font=textwidget.cget("font")
     textwidget.destroy()        
     textwidget=ttk.Entry(parent,textvariable=var)
-    buttonwidget.config(text="update",command=lambda: saveInfo(textwidget,buttonwidget,variable,font,mesg))
+    if attr=="name":
+        buttonwidget.config(text="update",command=lambda: saveName(textwidget,buttonwidget,file,attr,font,mesg))
+    else:
+        buttonwidget.config(text="update",command=lambda: saveInfo(textwidget,buttonwidget,file,attr,font,mesg))
     textwidget.grid(**grid)
+
+def asksaveoverwrite(title, message):
+    def on_save():
+        nonlocal result
+        result = True
+        dialog.destroy()
+
+    def on_overwrite():
+        nonlocal result
+        result = False
+        dialog.destroy()
+        
+    def on_cancel():
+        nonlocal result
+        result = None
+        dialog.destroy()
+        
+
+    result = None
+    dialog = tk.Toplevel()
+    dialog.title(title)
     
+    dialog.resizable(False, False)
+
+    label = tk.Label(dialog, text=message, wraplength=250)
+    label.grid(column=0,row=0)
+
+    button_frame = tk.Frame(dialog)
+    button_frame.grid(column=0,row=1,sticky='ew')
+    for i in range(3):
+        button_frame.columnconfigure(i,weight=1)
+
+    save_button = ttk.Button(button_frame, text="Save", command=on_save)
+    save_button.grid(column=0,row=0)
+
+    overwrite_button = ttk.Button(button_frame, text="Overwrite", command=on_overwrite)
+    overwrite_button.grid(column=1,row=0)
     
-def saveInfo(textwidget,buttonwidget,variable,font,mesg):
+    cancel_button = ttk.Button(button_frame, text="Cancel", command=on_cancel)
+    cancel_button.grid(column=2,row=0)
+
+    dialog.transient()  # Make the dialog modal
+    dialog.grab_set()
+    dialog.wait_window()
+    return result
+    
+def saveName(textwidget,buttonwidget,file,attr,font,mesg):   
+    old_file=getattr(file, 'name')#obtain details before update
+    type_of_file=getattr(file, 'type')
+    var=textwidget.cget("textvariable")
+    new_name=root.getvar(name=var)
+    if old_file!=new_name:
+        query=asksaveoverwrite('Change of document name','You have changed the name of the document\nDo you wish to save as a new document, or overwrite the existing one?\nIf save is selected, the original document will revert to the previous save')
+        if query:
+            saveInfo(textwidget,buttonwidget,file,attr,font,mesg)#save change
+            new_file=getattr(file, 'name')#obtain new details
+            #save to dictionary and reload original and new as objects
+            file.dictionarify()
+            new_doc=classifyDoc(docu[type_of_file][new_file],type_of_file)
+            classifyDoc(docu[type_of_file][old_file],type_of_file)
+            #refresh view
+            root['menu']=Menubar(root)
+            make_document_frame(new_doc)
+        elif query==False:
+            saveInfo(textwidget,buttonwidget,file,attr,font,mesg)#save change
+            new_file=getattr(file, 'name')#obtain new details
+            #save to dictionary and reload new
+            file.dictionarify()
+            new_doc=classifyDoc(docu[type_of_file][new_file],type_of_file)
+            #delete old
+            file.delete()
+            #refresh view
+            root['menu']=Menubar(root)
+            make_document_frame(new_doc)
+        else:saveInfo(textwidget,buttonwidget,file,attr,font,mesg,change=False)
+    else:saveInfo(textwidget,buttonwidget,file,attr,font,mesg)
+    
+        
+        
+    
+def saveInfo(textwidget,buttonwidget,file,attr,font,mesg,change=True):
     parent=root.nametowidget(textwidget.winfo_parent())
     grid=textwidget.grid_info()
     var=textwidget.cget("textvariable")
-    variable=textwidget.get()
+    if change:
+        file.update(attr,root.getvar(name=var))
+    else:
+        vari=tk.StringVar()
+        vari.set(getattr(file, attr))
+        print(getattr(file, attr))
     textwidget.destroy()        
-    textwidget=ttk.Label(parent,textvariable=var,font=font)
-    buttonwidget.config(text=mesg,command=lambda: editInfo(textwidget,buttonwidget,variable,mesg))
+    if change:
+        textwidget=ttk.Label(parent,textvariable=var,font=font)
+    else:
+        textwidget=ttk.Label(parent,textvariable=vari,font=font)
+    buttonwidget.config(text=mesg,command=lambda: editInfo(textwidget,buttonwidget,file,attr,mesg))
     textwidget.grid(**grid)
     
-def updateFromWidget(widget_var,variable,*args):    
-    variable=widget_var.get()
+
 
 
 ############create root window
 root=tk.Tk()
 root.title("Lyrics manager")
 root.geometry('1250x600')
+root.protocol("WM_DELETE_WINDOW", on_close)
 
 
 ############song view
@@ -990,29 +1344,11 @@ def make_song_frame():
     global song_frame
     song_frame.grid(row=0,column=0,sticky='nwes')
     doc_frame.grid_remove()
-###############create menubar#########################
-menubar = tk.Menu(root)
-root['menu'] = menubar
+#create menubar#
 
-#Documents menu
-doc_menu=tk.Menu(menubar)
-menubar.add_cascade(menu=doc_menu, label='Documents')
-for instance in docu["document"].keys():
-    doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
-if docu["equip"]:
-    doc_menu.add_separator()
-    doc_menu.add_command(label="Meeting slides")
-    for instance in docu["equip"].keys():
-        doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
-if docu["file"]:
-    doc_menu.add_separator()
-    doc_menu.add_command(label="Lyric files")
-    for instance in docu["file"].keys():
-        doc_menu.add_command(label=instance,command=lambda i=documents[instance]:make_document_frame(i))
+root['menu'] = Menubar(root)
 
-#song editor
-menubar.add_command(label="Song editor",command=make_song_frame)
-#######################################################
+
 #
 #
 make_document_frame(documents["CU lyrics"])
