@@ -4,6 +4,11 @@ Created on Mon Aug 11 13:57:39 2025
 
 @author: charl
 """
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
+from tkinter import colorchooser
+from itertools import zip_longest
 #%% Song class
 """
 import subprocess
@@ -113,6 +118,32 @@ class Song:
         new_stanza_list[4]=bilingualStanza
         new_stanza_tuple=tuple(new_stanza_list)
         self.lyrics[index]=new_stanza_tuple
+    def delete(self):
+        song_dictionaries.pop(self.name,None)#remove dict reference
+        song.pop(self.name,None)#remove object reference
+        try:
+            global song_list
+            song_list.grid_forget()
+            song_list=Songlistbox(song_frame)
+            song_list.grid(row=0,column=0,sticky='ns')
+        finally:
+            del self#delete
+    def refresh(self,*args):      
+        if self.nameRef()!=self.name:#if name reference has changed since the istance was initialised
+            user_response=True
+            if self.nameRef() in song_dictionaries: #check not overwriting
+                user_response=tk.messagebox.askokcancel("Name clash","This song is about to overwrite a song with the same name/nDo you want to continue?")
+            if user_response:
+                #save to dictionary and instantiate
+                self.dictionarify()
+                makeClass(song_dictionaries[self.nameRef()])
+                #delete original
+                self.delete()              
+            else:#if cancel chosen, revert name attributes
+                for attr in ['title','alttitles','Wtitle','Walttitles','artist']:
+                    setattr(self, attr, song_dictionaries[self.name][attr])
+    def labells(self):
+        return [stanza[1] for stanza in self.lyrics]
     def __init__(self,title,alttitles,artist,cat,Wtitle,Walttitles,lyrics,errors):
         self.title=title
         self.alttitles=alttitles
@@ -122,6 +153,7 @@ class Song:
         self.lyrics=lyrics
         self.cat=cat
         self.errors=errors
+        self.name=self.nameRef()
     def nameRef(self):
         return self.title+json.dumps(self.alttitles)+self.Wtitle+json.dumps(self.Walttitles)+self.artist
     def dictionarify(self):
@@ -432,18 +464,16 @@ class Document:
         #compile_latex(name)
 
 class Equip(Document):
-    def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,beforeWorship=["1","2","3"],worship=[],afterWorship=["4"]):
+    def __init__(self,name,title,author,language="Eng",songs=song,aspect_ratio="169",theme="Berlin",Ecolour="0056B8",Wcolour="222222",logo_address="CU_logo.jpeg",uniformSize=True,slides=[["1","2","3"],["4"]],worship=[[]]):
         super().__init__(name,title,author,language,songs,aspect_ratio,theme,Ecolour,Wcolour,logo_address,uniformSize)
-        self.beforeWorship=beforeWorship
-        self.worship=[self.songs[request] for request in worship if request in self.songs]
-        self.afterWorship=afterWorship
+        self.slides=slides
+        self.worship=[[self.songs[request] for request in section if request in self.songs] for section in worship]
         self.type='equip'
     def dictionarify(self):
         global docu
         docu["equip"][self.name]={"name":self.name,"title":self.title,"author":self.author,"language":self.language,"aspect_ratio":self.aspect_ratio,
                   "theme":self.theme,"Ecolour":self.Ecol,"Wcolour":self.Wcol,"logo_address":self.logo_address,
-                  "uniformSize":self.uniformSize,"beforeWorship":self.beforeWorship,"worship":[request.nameRef() for request in self.worship],
-                  "afterWorship":self.afterWorship}  
+                  "uniformSize":self.uniformSize,"slides":self.slides,"worship":[[request.nameRef() for request in section]for section in self.worship]}  
     def rename(self,new_name):
         docu["equip"].pop(self.name)
         self.name=new_name
@@ -465,7 +495,7 @@ class Equip(Document):
                 count+=1
                 self.findSong(user_input,count)
             else: return
-        
+        """
     def plan(self):
         print("Choose the slides for the beginning, then pressing enter after each slide.")
         print("Press enter with no input to move to the end.")
@@ -494,6 +524,7 @@ class Equip(Document):
                     section.append(result)
         
         self.worship=section
+        """
     def getSlide(self,file_name):
         text="\\includepdf{"
         text+=file_name+".png"
@@ -502,15 +533,13 @@ class Equip(Document):
     def write(self):
         text=self.preamble()
         text+="\\begin{document}\n\n"
-        for slide in self.beforeWorship:
-            text+=self.getSlide(slide)
-        for request in self.worship:
-            text+="\\section{ "
-            text+=request.title
-            text+=" }\n\n"
-            text+=request.write(self.language,self.uniformSize)
-        for slide in self.afterWorship:
-            text+=self.getSlide(slide)
+        for slides,worship in zip_longest(self.slides,self.worship,fillvalue=[]):
+            for slide in slides:text+=self.getSlide(slide)
+            for request in worship:
+                text+="\\section{ "
+                text+=request.title
+                text+=" }\n\n"
+                text+=request.write(self.language,self.uniformSize)
         text+="\\end{document}"
         return text
 class File(Document):
@@ -529,9 +558,29 @@ class File(Document):
         self.dictionarify()              
     
 #%% read song function
+
+   
 def read_song(file):
-    global song_dictionaries
     s=open(file,"r")
+    song= s.readlines()
+    s.close()
+    read_a_song(song)
+    
+def read_text(song,text_window):
+    
+    global song_list
+    new_song=read_a_song(song)
+    song_list.grid_forget()
+    song_list=Songlistbox(song_frame)
+    song_list.grid(row=0,column=0,sticky='ns')
+    text_window.destroy()
+    edit_window=tk.Toplevel(root)
+    edit_window.title=new_song.title
+    SongEditor(edit_window, new_song).grid(row=0,column=0)
+    
+def read_a_song(song):    
+    global song_dictionaries
+    
     ref=[]
     Wref=[]
     label=[]
@@ -542,10 +591,7 @@ def read_song(file):
     bilingual_lines_error=False
     bilingual_error=False
 
-    song= s.readlines()
-
-    #close song file
-    s.close()
+    
 
     song=[line.rstrip() for line in song] #removes \n and spaces from each line
 
@@ -670,12 +716,14 @@ def read_song(file):
         
     song_dictionaries[title+json.dumps(alttitles)+Wtitle+json.dumps(Walttitles)+art]={"title":title,"Wtitle":Wtitle,"alttitles":alttitles,"Walttitles":Walttitles,"cat":cat,
                               "artist":art,"lyrics":lyrics,"errors":errors}
-    makeClass(song_dictionaries[title+json.dumps(alttitles)+Wtitle+json.dumps(Walttitles)+art])
+    return makeClass(song_dictionaries[title+json.dumps(alttitles)+Wtitle+json.dumps(Walttitles)+art])
+    
 #%% 
         
 def makeClass(song_dict):
     global song
     song[song_dict["title"]+json.dumps(song_dict["alttitles"])+song_dict["Wtitle"]+json.dumps(song_dict["Walttitles"])+song_dict["artist"]]=Song(**song_dict)
+    return song[song_dict["title"]+json.dumps(song_dict["alttitles"])+song_dict["Wtitle"]+json.dumps(song_dict["Walttitles"])+song_dict["artist"]]
 def saveSongs(file="songs JSON.txt"):
     for a_song in song.values():
         a_song.dictionarify()
@@ -734,10 +782,7 @@ for document in docu["file"].values():
     documents[document["name"]]=File(**document)
 #%% TKinter
 
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
-from tkinter import colorchooser
+
 
 def on_close():
     # Ask the user for confirmation
@@ -750,20 +795,17 @@ def on_close():
         root.destroy()  # Close the window
     # If response is None (Cancel), do nothing
 
-def shuffle(widget):
-    pos=widget.grid_info()
-def shuffleSelect(widget,flag=True):
-    pos=widget.grid_info()
-    if flag:
-        pos['row']+=10
-        flag=False
-    else:
-        pos['row']-=10
-        flag=True
-    widget.grid(**pos)
+
+def get_widgets_in_row(parent, row):
+    widgets_in_row = []
+    for widget in parent.winfo_children():
+        grid_info = widget.grid_info()
+        if grid_info.get('row') == row:
+            widgets_in_row.append(widget)
+    return widgets_in_row
     
 class MultilineEntry(tk.Text):
-    def update_size(self,event=None):
+    def update_size(self,*args):
         # Get the number of lines and the longest line
         lines = self.get("1.0", "end-1c").split("\n")
         max_width = max(len(line) for line in lines)
@@ -802,12 +844,37 @@ class Menubar(tk.Menu):
         #song editor
         self.add_command(label="Song editor",command=make_song_frame)
         
+        #new song menu
+        self.new_song=tk.Menu(self)
+        self.add_cascade(menu=self.new_song, label='New song')
+        self.new_song.add_command(label='Editor',command=newSong)
+        self.new_song.add_command(label='Text input',command=textSong)
+        
+def newSong():
+    #generate empty song instance
+    new_song=Song('', [], '', 0, '', [], [('','',[[]],[[]],[[]])], {"length":False,"english lines":False,"welsh lines":False,"bilingual lines":False,"bilingual":False} )
+    #create editor window
+    edit_window=tk.Toplevel(root)
+    edit_window.title='New song'
+    SongEditor(edit_window, new_song).grid(row=0,column=0)
+    #since refresh will be called when editor is destroyed, it should refresh
+    
+def textSong():
+    text_window=tk.Toplevel(root)
+    text_window.title='New song'
+    text_frame=ttk.Frame(text_window)
+    text_frame.grid(column=0,row=0,sticky='news')
+    text=tk.Text(text_frame)
+    text.grid(column=0,row=0,sticky='nwes')
+    done_button=ttk.Button(text_frame,text='Done',command=lambda:read_text(text.get("1.0", "end-1c").split('\n'),text_window))
+    done_button.grid(column=0,row=1,sticky='e')
+        
 class SongEditor(ttk.Frame):
     #def updateSanza(self,i,stanza):
     def writeStanzaFrame(self,i,j,stanza):
         self.var[i][j]={}
         fr=ttk.Frame(self.lyrics)#frame containing each language of stanza
-        fr.grid(row=i*2,column=j,sticky='nsew')
+        fr.grid(row=(i*2)+1,column=j,sticky='nsew')
         for k,slide in enumerate(stanza[j]):
             self.var[i][j][k]=tk.StringVar()
             try:
@@ -826,7 +893,7 @@ class SongEditor(ttk.Frame):
         if stanza[j][0]:
             split_slides=ttk.Label(stanza_buttons,text='split')
             split_slides.grid(row=0,column=0)
-            split_slides.bind("<Button-1>",lambda e,s=stanza[j]:self.splitCommand(s,e))
+            split_slides.bind("<Button-1>",lambda e,i=i,j=j,f=fr:self.splitCommand(i,j,f))
         if j!=4:
             edit_stanza=ttk.Label(stanza_buttons,text='edit')
             edit_stanza.grid(row=0,column=1)
@@ -839,24 +906,87 @@ class SongEditor(ttk.Frame):
         self.song.updateBil(i)
         self.writeStanzaFrame(i,4,self.song.lyrics[i])
         frame.grid_forget()
-    def writeStanza(self,i,stanza):
-        
+    def writeStanza(self,i,stanza):        
         self.var[i]={}
-        self.var[i][0]=tk.StringVar()
-        self.var[i][0].set(stanza[0])
-        lfr=ttk.Frame(self.lyrics)#frame containing stanza label
-        lfr.grid(row=i*2,column=0,sticky='nw')#frame for the stanza label
-        label=ttk.Label(lfr,textvariable=self.var[i][0])
-        label.grid(row=0,column=0,sticky='nw')
-        #rename_label=ttk.Button(lfr,text="rename",width=7,command=lambda l=label,s=stanza:editInfo(l,rename_label,self.song,s[0],mesg="rename"))
-        #rename_label.grid(row=1,column=0,sticky='w')
-        shuffle=ttk.Button(lfr,text='shuffle',width=7)
-        shuffle.grid(row=2,column=0,sticky='w')
+        self.writeLabelFrame(i,stanza)
         for j in [2,3,4]:#for the lyrics parts of the stanza tuple
             self.writeStanzaFrame(i, j, stanza)
             
-    def editStanza(self,stanza,i,j,frame,*args):
+    def writeLabelFrame(self,i,stanza):
+        self.var[i][0]=tk.StringVar()
+        self.var[i][0].set(stanza[0])
+        lfr=ttk.Frame(self.lyrics)#frame containing stanza label
+        lfr.grid(row=(i*2)+1,column=0,sticky='nw')#frame for the stanza label
+        label=ttk.Label(lfr,textvariable=self.var[i][0])
+        label.grid(row=0,column=0,sticky='nw')
+        rename_label=ttk.Label(lfr,text="rename")
+        rename_label.bind('<Button-1>',lambda e,f=lfr,i=i,s=stanza:self.editLabel(f,i,s))
+        rename_label.grid(row=1,column=0,sticky='ws')
+        shuffle=ttk.Label(lfr,text='shuffle')
+        shuffle.bind('<Button-1>',lambda e,i=i,s=shuffle:self.on_shuffle(i,s))
+        shuffle.grid(row=2,column=0,sticky='ws')
         
+    def on_shuffle(self,i,button):
+        widgets=get_widgets_in_row(self.lyrics, (i*2)+1)
+        self.new_i=i   
+        self.lyrics.focus_set()
+        self.lyrics.bind('<Up>',lambda e, w=widgets, d='up',i=i:self.on_up_down(w,d,i))
+        self.lyrics.bind('<Down>',lambda e, w=widgets, d='down',i=i:self.on_up_down(w,d,i))
+        button.unbind('<Button-1>')
+        button.configure(text='done')
+        button.bind('<Button-1>',lambda e, i=i :self.unshuffle(i))
+    def unshuffle(self,old_i):
+        self.lyrics.unbind('<Up>')
+        self.lyrics.unbind('<Down>')
+        shuffled_stanza=self.song.lyrics.pop(old_i)
+        self.song.lyrics.insert(self.new_i,shuffled_stanza)
+        for widget in self.lyrics.grid_slaves():
+            widget.grid_forget()
+        for i,stanza in enumerate(self.song.lyrics):
+            self.writeStanza(i, stanza)
+    def on_up_down(self,widgets,direction,i):
+        a=2
+        if self.new_i==i:
+            a=3
+        if direction=='up' and self.new_i>=1:
+            if self.new_i==i+1:
+                a=3
+            self.new_i-=1
+            for widget in widgets:
+                pos=widget.grid_info()
+                pos['row']-=a
+                widget.grid_forget
+                widget.grid(**pos)
+        elif direction=='down' and self.new_i<=len(self.song.lyrics)-2:
+            if self.new_i==i-1:
+                a=3
+            self.new_i+=1
+            for widget in widgets:
+                pos=widget.grid_info()
+                pos['row']+=a
+                widget.grid_forget
+                widget.grid(**pos)
+        
+            
+    def editLabel(self,frame,i,stanza,*args):
+        lfr=ttk.Frame(self.lyrics)
+        label=ttk.Entry(lfr,textvariable=self.var[i][0],width=5)
+        label.grid(row=0,column=0,sticky='nw')
+        lfr.grid(row=(i*2)+1,column=0,sticky='nw')
+        save_label=ttk.Label(lfr,text="save")
+        save_label.bind('<Button-1>',lambda e,f=lfr,i=i,s=stanza:self.saveLabel(f,i,s))
+        save_label.grid(row=1,column=0,sticky='ws')
+        frame.grid_forget()#empty previous frame
+    def saveLabel(self,frame,i,stanza,*args):
+        new_label=self.var[i][0].get()
+        new_labell=self.var[i][0].get()
+        labell=self.song.labells()
+        while new_labell in labell:
+            new_labell+="I"
+        self.song.lyrics[i]=(new_label,new_labell,stanza[2],stanza[3],stanza[4])
+        frame.grid_forget()
+        self.writeLabelFrame(i, self.song.lyrics[i])#refresh
+    def editStanza(self,stanza,i,j,frame,*args):
         #obtain grid information for frame
         pos=frame.grid_info()
         #create new frame to replace it
@@ -889,8 +1019,74 @@ class SongEditor(ttk.Frame):
         self.song.lyrics[i]=new_stanza_tuple
         self.writeStanzaFrame(i, j, self.song.lyrics[i])
         frame.grid_forget()
-    def splitCommand(self,stanza,*args):
-        return
+    def splitCommand(self,i,j,frame,*args):
+        #remove old frame from grid
+        frame.grid_forget()
+        def on_hover(k):
+            separators[k].grid(row=0,column=0,sticky='ew')
+        def on_exit(k):
+            if k not in selection:
+                separators[k].grid_forget()
+        def on_click(k):
+            if k in selection:
+                selection.discard(k)
+                separators[k].grid_forget()
+            else: 
+                selection.add(k)
+                separators[k].grid(row=0,column=0,sticky='ew')
+            
+        #combine slides in stanza
+        stanza=[]
+        for slide in self.song.lyrics[i][j]:
+            stanza+=slide
+        #make new frame and grid it where the old one is
+        new_frame=ttk.Frame(self.lyrics)
+        new_frame.columnconfigure(0,weight=1)
+        #create a frame for each line
+        line_frame={}
+        separators={}
+        lines={}
+        lin={}
+        selection=set()
+        for k,line in enumerate(stanza):
+            line_frame[k]=ttk.Frame(new_frame)
+            line_frame[k].grid(row=k,column=0,sticky='ew')
+            separators[k]=ttk.Separator(line_frame[k])
+            if isinstance(line, str):
+                lines[k]=ttk.Label(line_frame[k],text=line)
+                lines[k].grid(row=1,column=0,sticky='w')#contains the line
+            else:#for bilingual
+                lines[k]=ttk.Label(line_frame[k],text=line[0])
+                lines[k].grid(row=1,column=0,sticky='w')
+                lin[k]=ttk.Label(line_frame[k],text=line[1])
+                lin[k].grid(row=2,column=0,sticky='w')
+                lin[k].bind('<Button-1>',lambda e,k=k:on_click(k))
+            line_frame[k].bind('<Enter>',lambda e,k=k:on_hover(k))
+            line_frame[k].bind('<Leave>',lambda e,k=k:on_exit(k))
+            lines[k].bind('<Button-1>',lambda e,k=k:on_click(k))#click doesn't work for frame, since obscured by the label
+        done_button=ttk.Label(new_frame,text="done")
+        done_button.bind('<Button-1>',lambda e:self.saveSplit(i,j,stanza,new_frame,selection))
+        done_button.grid(row=k+1,column=0,sticky='w')
+        
+        new_frame.grid(row=(i*2)+1,column=j,sticky='nsew')
+        
+    def saveSplit(self,i,j,stanza,frame,selection,*args):
+        selection.discard(0)
+        splits=sorted(list(selection))
+        splits1=[0]+splits
+        splits2=splits+[len(stanza)]
+        stanza=[stanza[i:j] for i,j in zip(splits1,splits2)] 
+        new_stanza_list=[]
+        for l in range(5):
+            if l!=j:
+                new_stanza_list.append(self.song.lyrics[i][l])
+            else:
+                new_stanza_list.append(stanza)
+        new_stanza_tuple=tuple(new_stanza_list)
+        self.song.lyrics[i]=new_stanza_tuple
+        self.writeStanzaFrame(i, j, self.song.lyrics[i])
+        frame.grid_forget()
+        
     def infoFrame(self):
         info=ttk.Frame(self)
         ttk.Label(info,text='English title:').grid(row=0,column=0)
@@ -941,16 +1137,18 @@ class SongEditor(ttk.Frame):
         self.var={}
         self.titlevar=tk.StringVar(value=self.song.title)
         self.Wtitlevar=tk.StringVar(value=self.song.Wtitle)
-        self.artvar=tk.StringVar(value=self.song.artist)
-        self.alttitlesvar=tk.StringVar(value=self.song.alttitles)
-        self.Walttitlesvar=tk.StringVar(value=self.song.Walttitles)
+        self.artvar=tk.StringVar(value=self.song.artist[1:-1])#remove brackets
+        self.alttitlesvar=tk.StringVar(value=','.join(self.song.alttitles))
+        self.Walttitlesvar=tk.StringVar(value=','.join(self.song.Walttitles))
         self.catvar=tk.StringVar(value=self.song.cat)
         self.info=self.infoFrame()
         self.lyrics=ttk.Frame(self)
         for i,stanza in enumerate(self.song.lyrics):
             self.writeStanza(i, stanza)
         self.new_stanza_button=ttk.Button(self,text='New stanza',width=12,command=self.newStanza)
+        self.delete_button=ttk.Button(self,text='Delete',width=7,command=self.song.delete)
         self.new_stanza_button.grid(row=2,column=0,sticky='e')
+        self.delete_button.grid(row=2,column=1,sticky='e')
         self.lyrics.grid_columnconfigure(0,minsize=40)
         self.lyrics.grid_columnconfigure(2,minsize=270)
         self.lyrics.grid_columnconfigure(3,minsize=270)
@@ -958,6 +1156,7 @@ class SongEditor(ttk.Frame):
         
         self.info.grid(row=0,column=0)
         self.lyrics.grid(row=1,column=0)
+        self.bind('<Destroy>',self.song.refresh)#check for changes to name and refresh if needed
         
                 
             
@@ -996,7 +1195,42 @@ class DocumentEditor(ttk.Frame):
             root['menu']=Menubar(root)
             make_document_frame(documents["CU lyrics"])
             del self
-        
+    def makeSongFrame(self):
+        self.song_check_canvas=tk.Canvas(self.select_frame,width=270)#canvas is scrollable
+        self.song_check_canvas.grid(column=1,row=0,sticky="nse")
+
+
+        self.song_check=ttk.Frame(self.song_check_canvas)#frame inside canvas
+        self.song_check.grid(column=0,row=0,sticky='ew')
+
+        ###scrollbar for songs
+        self.song_check_scroll=ttk.Scrollbar(self.select_frame,orient=tk.VERTICAL,command=self.song_check_canvas.yview)
+        self.song_check_scroll.grid(column=2,row=0, sticky="ns")
+
+        self.song_check_canvas.create_window((0, 0), window=self.song_check, anchor="nw")
+        self.song_check_canvas.configure(yscrollcommand=self.song_check_scroll.set)
+
+        # Configure the scrollable frame
+        self.song_check.bind(
+            "<Configure>",
+            lambda e: self.song_check_canvas.configure(scrollregion=self.song_check_canvas.bbox("all")))
+
+        #dictionary to hold info on inclusion of songs in document
+        self.a={} 
+        for a_song in song.keys():
+            if a_song in self.file.songs.keys():
+                self.a[a_song]=tk.IntVar(value=1)
+            else: self.a[a_song]=tk.IntVar()
+            
+        #checkbutton for each song
+        sorted_song = {key: song[key] for key in sorted(song)}
+        for i,a_song in enumerate(sorted_song.values()):
+            ttk.Checkbutton(self.song_check,text=a_song.uniqueEntry(a_song.title,self.file.language),variable=self.a[a_song.nameRef()],command=lambda s=a_song:self.updateSelection(s)).grid(column=0,row=i*2,sticky="w")
+            elipsis=ttk.Label(self.song_check,text="...")
+            elipsis.bind("<Button-1>",lambda e,s=a_song, j=(2*i)+1: self.infoCreate(s,j,e))
+            elipsis.grid(column=1,row=i*2,sticky="e")
+
+        self.info=ttk.Label(self.song_check) 
     def __init__(self,parent,doc,*args,**kwargs):
         super().__init__(parent,*args,**kwargs)
         self.grid(column=0, row=0, sticky="nwes")
@@ -1006,7 +1240,6 @@ class DocumentEditor(ttk.Frame):
         
         self.file=doc
         
-
         ######parameter window
         self.doc_params=ttk.Frame(self)
         self.doc_params.grid(column=0,row=0,sticky="N")
@@ -1100,47 +1333,123 @@ class DocumentEditor(ttk.Frame):
 
 
         ######song selection window
-        self.song_check_canvas=tk.Canvas(self,width=245)#canvas is scrollable
-        self.song_check_canvas.grid(column=1,row=0,sticky="nse")
-
-
-        self.song_check=ttk.Frame(self.song_check_canvas)#frame inside canvas
-        self.song_check.grid(column=0,row=0,sticky='ew')
-
-        ###scrollbar for songs
-        self.song_check_scroll=ttk.Scrollbar(self,orient=tk.VERTICAL,command=self.song_check_canvas.yview)
-        self.song_check_scroll.grid(column=2,row=0, sticky="ns")
-
-        self.song_check_canvas.create_window((0, 0), window=self.song_check, anchor="nw")
-        self.song_check_canvas.configure(yscrollcommand=self.song_check_scroll.set)
-
-        # Configure the scrollable frame
-        self.song_check.bind(
-            "<Configure>",
-            lambda e: self.song_check_canvas.configure(scrollregion=self.song_check_canvas.bbox("all")))
-
-
-
-        #dictionary to hold info on inclusion of songs in document
-        self.a={} 
-        for a_song in song.keys():
-            if a_song in self.file.songs.keys():
-                self.a[a_song]=tk.IntVar(value=1)
-            else: self.a[a_song]=tk.IntVar()
-            
+        self.select_frame=ttk.Frame(self)
+        self.makeSongFrame()
+        self.select_frame.columnconfigure(1,weight=1)
+        self.select_frame.rowconfigure(0,weight=1)
+        self.select_frame.grid(row=0,column=1,sticky='nwes')
         
-                    
-                    
-        #checkbutton for each song
-        sorted_song = {key: song[key] for key in sorted(song)}
-        for i,a_song in enumerate(sorted_song.values()):
-            ttk.Checkbutton(self.song_check,text=a_song.uniqueEntry(a_song.title,self.file.language),variable=self.a[a_song.nameRef()],command=lambda s=a_song:self.updateSelection(s)).grid(column=0,row=i*2,sticky="w")
-            elipsis=ttk.Label(self.song_check,text="...")
-            elipsis.bind("<Button-1>",lambda e,s=a_song, j=(2*i)+1: self.infoCreate(s,j,e))
-            elipsis.grid(column=1,row=i*2,sticky="e")
+class Plan(ttk.Frame):
+    def __init__(self,parent,index,name,entrylist,*args,**kwargs):
+        super().__init__(parent,*args,**kwargs)
+        self.title_frame=ttk.Frame(self)
+        self.title_frame.grid(column=0,row=0)         
+        self.title=ttk.Label(self.title_frame,text=name+': '+index)
+        self.title.grid(column=0,row=0)
+        for a,item in enumerate(entrylist):
+            itemframe=ttk.Frame(self)
+            itemframe.grid(row=(2*a)+2,column=0)
+            ttk.Label(itemframe,text=item).grid(column=0,row=0)
+            edit_button=ttk.Label(itemframe,text='edit')
+            edit_button.grid(column=1,row=0)
+            edit_button.bind('<Button-1>',)
+            shuffle_button=ttk.Label(itemframe,text='move')
+            shuffle_button.grid(column=2,row=0)
+            shuffle_button.bind('<Button-1>',)
+            
+class PlanItem(ttk.Frame):
+    def delete(self):
+        self.grid_forget()
+        del self
+    def move(self):
+        self.shuffle_button.grid_forget()      
+        self.place_button.grid(column=2,row=0)
+        
+    def place(self):
+        self.place_button.grid_forget()
+        self.shuffle_button.grid(column=2,row=0)
+        
+    def __init__(self,parent,item,*args,**kwargs):
+        super().__init__(parent,*args,**kwargs)
+        self.label=ttk.Label(self,text=item)
+        self.label.grid(column=0,row=0)
+        self.delete_button=ttk.Label(self,text='delete')
+        self.delete_button.grid(column=1,row=0)
+        self.delete_button.bind('<Button-1>',self.delete)
+        self.shuffle_button=ttk.Label(self,text='move')
+        self.shuffle_button.grid(column=2,row=0)
+        self.shuffle_button.bind('<Button-1>',self.move)
+        self.place_button=ttk.Label(self,text='place')
+        self.place_button.bind('<Button-1>',self.place)
+class EquipEditor(DocumentEditor):
 
-        self.info=ttk.Label(self.song_check)    
+    def makePlan(self,i,slides,worship):
+        for j,slide in enumerate(slides):
+            continue
+    #def makeSongFrame(self):
+    def __init__(self,parent,doc,*args,**kwargs):
+        super().__init__(self,parent,doc,*args,**kwargs)
+        self.plan_frame=ttk.Frame(self.doc_params)
+        self.plan_frame.grid(row=8,column=0,columnspan=10)
+    
+        for i,(slides,worship) in enumerate(zip_longest(self.file.slides,self.file.worship,fillvalue=[])):
+            self.makePlan(i,slides,worship)
+        
+class Songlistbox(ttk.Frame):
+    def updateDetails(self,event,index):
+        if len(index)!=1:
+            return
+        global editor
+        
+        try:
+            editor.destroy()#destroy previous song editor, if exists
+        except: pass
+        try:
+            editor=SongEditor(song_frame,self.filtered_songs[index[0]])
+            editor.grid(column=1,row=0,rowspan=2,sticky='n')
+        except:
+            try:
+                editor=SongEditor(song_frame,self.list_of_songs[index[0]])
+                editor.grid(column=1,row=0,rowspan=2,sticky='n')
+            except: pass
+    def on_focus_in(self,event):
+        if self.search_bar.get() == "Search":
+            self.search_bar.delete(0, tk.END)
 
+    def on_focus_out(self,event):
+        if self.search_bar.get() == "":
+            self.search_bar.insert(0, "Search")
+            
+    def update_listbox(self,*args):
+        """Filter the Listbox items based on the search query."""
+        search_query = self.search_var.get().lower()
+        if search_query!="search":
+            self.filtered_songs = [a_song for a_song in self.list_of_songs if search_query in a_song.nameRef().lower()]
+        else: self.filtered_songs=self.list_of_songs
+        filtered_items=[a_song.uniqueEntry(a_song.title,'Eng') for a_song in self.filtered_songs]
+        self.listvar=tk.StringVar(value=filtered_items)
+        self.song_list['listvariable']=self.listvar
+    def __init__(self,parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        self.rowconfigure(1,weight=1)
+        list_of_songs=[a_song for a_song in song.values()]
+        self.list_of_songs=sorted(list_of_songs, key=lambda x: x.uniqueEntry(x.title,'Eng'))
+        self.search_var=tk.StringVar()
+        
+        self.search_bar = tk.Entry(self, textvariable=self.search_var, width=37)
+        self.search_bar.grid(row=0,column=0)
+        self.search_bar.insert(0, "Search")
+
+        self.search_bar.bind("<FocusIn>", self.on_focus_in)
+        self.search_bar.bind("<FocusOut>", self.on_focus_out)
+
+        list_of_song_names=[a_song.uniqueEntry(a_song.title,'Eng') for a_song in self.list_of_songs]
+        self.listvar=tk.StringVar(value=list_of_song_names)
+
+        self.song_list=tk.Listbox(self,listvariable=self.listvar,width=37)
+        self.song_list.bind("<<ListboxSelect>>", lambda e: self.updateDetails(e,self.song_list.curselection()))
+        self.song_list.grid(column=0,row=1,sticky='ns')
+        self.search_var.trace("w", self.update_listbox)
 
 
 def editInfo(textwidget,buttonwidget,file,attr,mesg="change"):
@@ -1239,13 +1548,24 @@ def saveInfo(textwidget,buttonwidget,file,attr,font,mesg,change=True):
     parent=root.nametowidget(textwidget.winfo_parent())
     grid=textwidget.grid_info()
     var=textwidget.cget("textvariable")
-    if change:
+    if 'alttitles' in attr:
+        read=root.getvar(name=var)
+        if read:
+            file.update(attr,read.split(','))
+        else: file.update(attr,[])
+    elif attr=='artist':
+        read=root.getvar(name=var)
+        if read:
+            file.update(attr,'('+read+')')
+        else: file.update(attr, '')
+    elif change:
         file.update(attr,root.getvar(name=var))
     else:
         vari=tk.StringVar()
         vari.set(getattr(file, attr))
         print(getattr(file, attr))
-    textwidget.destroy()        
+    textwidget.destroy() 
+        
     if change:
         textwidget=ttk.Label(parent,textvariable=var,font=font)
     else:
@@ -1264,65 +1584,19 @@ root.protocol("WM_DELETE_WINDOW", on_close)
 
 
 ############song view
-list_of_songs=[a_song for a_song in song.values()]
-list_of_songs=sorted(list_of_songs, key=lambda x: x.uniqueEntry(x.title,'Eng'))
-def updateDetails(event,index):
-    global editor
-    try:
-        editor.destroy()
-    except: pass
-    try:
-        editor=SongEditor(song_frame,filtered_songs[index[0]])
-    except:
-        try:
-            editor=SongEditor(song_frame,list_of_songs[index[0]])
-        except: pass
-    finally:
-        editor.grid(column=1,row=0,rowspan=2,sticky='n')
-    
+
 
 song_frame=ttk.Frame(root,padding="5 5 5 5")
 
-def on_focus_in(event):
-    if search_bar.get() == "Search":
-        search_bar.delete(0, tk.END)
 
-def on_focus_out(event):
-    if search_bar.get() == "":
-        search_bar.insert(0, "Search")
         
-def update_listbox(*args):
-    """Filter the Listbox items based on the search query."""
-    global song_list
-    global filtered_songs
-    search_query = search_var.get().lower()
-    if search_query!="search":
-        filtered_songs = [a_song for a_song in list_of_songs if search_query in a_song.nameRef().lower()]
-    else: filtered_songs=list_of_songs
-    filtered_items=[a_song.uniqueEntry(a_song.title,'Eng') for a_song in filtered_songs]
-    listvar=tk.StringVar(value=filtered_items)
-    song_list['listvariable']=listvar
-
-search_var=tk.StringVar()
+song_list=Songlistbox(song_frame)
+song_list.grid(row=0,column=0,sticky='ns')
 
 
 
-search_bar = tk.Entry(song_frame, textvariable=search_var, width=37)
-search_bar.grid(row=0,column=0)
-search_bar.insert(0, "Search")
 
-search_bar.bind("<FocusIn>", on_focus_in)
-search_bar.bind("<FocusOut>", on_focus_out)
-
-list_of_song_names=[a_song.uniqueEntry(a_song.title,'Eng') for a_song in list_of_songs]
-listvar=tk.StringVar(value=list_of_song_names)
-
-song_list=tk.Listbox(song_frame,listvariable=listvar,width=37)
-song_list.bind("<<ListboxSelect>>", lambda e: updateDetails(e,song_list.curselection()))
-song_list.grid(column=0,row=1,sticky='ns')
-search_var.trace("w", update_listbox)
-
-song_frame.rowconfigure(1,weight=1)
+song_frame.rowconfigure(0,weight=1)
 song_frame.columnconfigure(1,weight=1)
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
@@ -1335,7 +1609,10 @@ root.option_add('*tearOff', tk.FALSE)#prevents menus from tearing off
 def make_document_frame(doc):
     global doc_frame
     global song_frame
+    global editor
     try:doc_frame.grid_remove()
+    except:pass
+    try: editor.destroy()
     except:pass
     doc_frame=DocumentEditor(root, doc)
     song_frame.grid_remove()
