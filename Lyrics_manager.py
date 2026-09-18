@@ -4,7 +4,7 @@ Created on Mon Aug 11 13:57:39 2025
 
 @author: charl
 
-!pyinstaller --onefile --windowed --add-data "path.txt;."  --add-data "Logo.ico;." --icon=Logo.ico Lyrics_manager.py
+!pyinstaller --onefile --windowed --add-data "path.txt;."  --add-data "User.txt;."  --add-data "Logo.ico;." --icon=Logo.ico Lyrics_manager.py
 """
 
 import tkinter as tk
@@ -863,8 +863,12 @@ def on_close():
     if response:  # User chose "Yes"
         save()  # Save the content of the text widget
         root.destroy()  # Close the window
+        with open(flag,"w") as f:
+            print("The folder is free to edit",file=f)
     elif response is False:  # User chose "No"
         root.destroy()  # Close the window
+        with open(flag,"w") as f:
+            print("The folder is free to edit",file=f)
     # If response is None (Cancel), do nothing
 
 
@@ -967,8 +971,12 @@ class Menubar(tk.Menu):
         self.new_song.add_command(label='Editor',command=newSong)
         self.new_song.add_command(label='Text input',command=textSong)
         
-        self.add_command(label="Change folder",command=newFold)
+        self.folder=tk.Menu(self)
+        self.add_cascade(menu=self.folder, label='Folder')
+        self.folder.add_command(label='Current folder',command=currentFolder)
+        self.folder.add_command(label="Change folder",command=newFold)
         
+        self.add_command(label='Username',command=askUsername)
 def newSong():
     #generate empty song instance
     new_song=Song('', [], '', 0, '', [], [('','',[[]],[[]],[[]])], {"length":False,"english lines":False,"welsh lines":False,"bilingual lines":False,"bilingual":False} )
@@ -1913,6 +1921,25 @@ def saveInfo(textwidget,buttonwidget,file,attr,font,mesg,change=True):
         textwidget=ttk.Label(parent,textvariable=vari,font=font)
     buttonwidget.config(text=mesg,command=lambda: editInfo(textwidget,buttonwidget,file,attr,mesg))
     textwidget.grid(**grid)
+
+def currentFolder():
+    win=tk.Toplevel()
+    
+    win.title('Current folder')
+    
+    win.resizable(False, False)
+
+    label = tk.Label(win, text=json_path, wraplength=500)
+    label.grid(column=0,row=0)
+    
+    def coppy():
+        root.clipboard_clear()
+        copied=json_path
+        root.clipboard_append(copied)
+        # Ensure the clipboard content is saved after the script ends
+        root.update()
+    copy_button=ttk.Button(win,text='Copy',command=coppy)
+    copy_button.grid(column=1,row=1)
     
 def newFold():
     cont=tk.messagebox.askyesno(
@@ -1940,6 +1967,10 @@ def newFold():
                 print(text, file=f)
         except: pass
     root.destroy()
+    with open(flag,"w") as f:
+        print("The folder is free to edit",file=f)
+
+    
 
 
 ############create root window
@@ -1964,8 +1995,37 @@ root.iconbitmap(icon_path)
 
 
 
-
+user_path=resource_path("User.txt")
 path_path=resource_path("path.txt")
+
+
+with open(user_path,"r",encoding='utf-8') as f:
+    user=f.read()
+    username=user.strip()
+
+def updateUsername(a,e):
+    username=e.get()
+    if username !="":
+        a.destroy()
+        with open(user_path,"w",encoding='utf-8') as f:
+            print(username,file=f)
+
+def askUsername():
+    ask_user=tk.Toplevel()
+    ask_user.title("Choose a username")
+    ustext="""Current username is:
+"""+username+"""
+Edit username:"""
+    label=ttk.Label(ask_user,text=ustext)
+    label.grid(column=0,row=0,columnspan=2)
+    entry=ttk.Entry(ask_user,text=username)
+    entry.grid(column=0,row=1,columnspan=2)
+    enter=ttk.Button(ask_user, text="Update", command=lambda e=entry, a=ask_user:updateUsername(a,e))
+    enter.grid(column=1,row=2)
+
+if username=="":
+    askUsername()
+    
 
 
 with open(path_path,"r",encoding='utf-8') as f:
@@ -1995,7 +2055,9 @@ while not working:
             print(text, file=f)
     except:
         json_path = filedialog.askdirectory(title=dialog_title)
-        
+
+
+
 
 def saveSongs(file=songs_path):
     for a_song in song.values():
@@ -2084,5 +2146,35 @@ def make_song_frame():
 root['menu'] = Menubar(root)
 make_document_frame(documents["CU lyrics"])
 
-  
+def oopsDestroy(e):
+    root.unbind_all('<Destroy>')
+    try:
+        root.destroy()
+    except:
+        pass
+    
+
+flag=json_path+"/1flag.txt"
+try:
+    with open(flag,"r") as f:
+        text=f.read()
+        if "!" in text:
+            oops=tk.Toplevel()
+            oops.title("Folder in use")
+            bob=tk.Label(oops,text=text)
+            bob.grid(row=0,column=0)
+            oops.bind('<Destroy>', oopsDestroy)
+            root.withdraw()
+
+        else:
+            with open(flag,"w") as f:
+                print(username+" is working on this folder. Try again later!",file=f)
+            
+            
+except:pass
 root.mainloop()
+
+
+
+
+
